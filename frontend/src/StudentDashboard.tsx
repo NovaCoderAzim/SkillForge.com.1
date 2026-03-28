@@ -6,25 +6,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Compass, Award, Settings, LogOut,
   PlayCircle, ShoppingBag, User, Download, Clock,
-  CreditCard, X, Lock, Save, CheckCircle, AlertCircle,
+  CreditCard, X, Lock, Save, CheckCircle,
   Code, Play, Terminal, Monitor, AlertTriangle, Eye, EyeOff,
   ChevronRight, Menu, Zap, Cpu, Bell, Search, LayoutDashboard,
   CheckSquare, FileText, HelpCircle, Lightbulb, Trophy,
-  TrendingUp, Activity, Cloud, Layers
+  TrendingUp, Activity, Cloud, Layers, Unlock
 } from "lucide-react";
 import { GlassToast } from "./components/GlassToast";
 
-// ✅ AI IMPORTS (Proctoring)
-import * as tf from "@tensorflow/tfjs";
-import * as blazeface from "@tensorflow-models/blazeface";
-import "@tensorflow/tfjs-backend-webgl";
-
-// ✅ LOCAL PYTHON EXECUTION
 import { runPythonLocally } from './utils/pyodideEnv';
 const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
 // --- TYPES ---
 interface Course { id: number; title: string; description: string; price: number; image_url: string; instructor_id: number; }
-interface CodeTest { id: number; title: string; time_limit: number; problems: any[]; completed?: boolean; }
+interface CodeTest { id: number; title: string; time_limit: number; problems: any[]; completed?: boolean; result_status?: string; }
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -57,9 +51,9 @@ const StudentDashboard = () => {
 
   // --- PROCTORING & IDE STATES ---
   const [timeLeft, setTimeLeft] = useState(0);
-  const [fullScreenWarns, setFullScreenWarns] = useState(0);
+  const [violationCount, setViolationCount] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(true);
-  const [faceStatus, setFaceStatus] = useState<"ok" | "missing" | "multiple">("ok");
+  const [showWarningOverlay, setShowWarningOverlay] = useState(false);
 
   // Problem & Code State
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
@@ -70,7 +64,7 @@ const StudentDashboard = () => {
   const [consoleOutput, setConsoleOutput] = useState("Ready to execute...");
   const [executionStatus, setExecutionStatus] = useState("idle");
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const VIOLATION_LIMIT = 5;
 
   const languages = [
     { id: 71, name: "Python (3.8.1)", value: "python" },
@@ -120,10 +114,10 @@ const StudentDashboard = () => {
   };
 
   useEffect(() => {
-    let aiInterval: any;
+    let timerInterval: any;
     if (activeTest) {
       const savedWarns = localStorage.getItem(`warns_${activeTest.id}`);
-      if (savedWarns) setFullScreenWarns(parseInt(savedWarns));
+      if (savedWarns) setViolationCount(parseInt(savedWarns));
 
       const savedSolutions = localStorage.getItem(`sols_${activeTest.id}`);
       if (savedSolutions) {
@@ -134,66 +128,73 @@ const StudentDashboard = () => {
         setUserCode("# Write your solution here...");
       }
 
-      const timer = setInterval(() => {
+      // Countdown timer
+      timerInterval = setInterval(() => {
         setTimeLeft(prev => {
-          if (prev <= 1) { submitTest(); return 0; }
+          if (prev <= 1) { terminateTest("timeout"); return 0; }
           return prev - 1;
         });
       }, 1000);
 
+      // ── Proctoring: fullscreen exit detection ──────────────────────────────
       const handleFullScreenChange = () => {
         if (!document.fullscreenElement) {
           setIsFullScreen(false);
-          setFullScreenWarns(prev => {
-            const newCount = prev + 1;
-            localStorage.setItem(`warns_${activeTest.id}`, newCount.toString());
-            if (newCount > 2) {
-              submitTest();
-              triggerToast("🛑 TEST TERMINATED: Full-screen violation limit exceeded.", "error");
-            }
-            return newCount;
-          });
+          setShowWarningOverlay(true);
+          recordViolation();
         } else {
           setIsFullScreen(true);
         }
       };
       document.addEventListener("fullscreenchange", handleFullScreenChange);
 
-      const setupAI = async () => {
-        try {
-          await tf.setBackend('webgl');
-          const loadedModel = await blazeface.load();
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              videoRef.current.onloadeddata = () => {
-                aiInterval = setInterval(async () => {
-                  if (videoRef.current && videoRef.current.readyState === 4) {
-                    const predictions = await loadedModel.estimateFaces(videoRef.current, false);
-                    if (predictions.length === 0) setFaceStatus("missing");
-                    else if (predictions.length > 1) setFaceStatus("multiple");
-                    else setFaceStatus("ok");
-                  }
-                }, 1000);
-              };
-            }
-          }
-        } catch (err) { console.error("AI Init Failed", err); }
+      // ── Proctoring: tab switch / window blur detection ─────────────────────
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          setShowWarningOverlay(true);
+          recordViolation();
+        }
       };
-      setupAI();
+      document.addEventListener("visibilitychange", handleVisibilityChange);
 
       return () => {
-        clearInterval(timer);
-        clearInterval(aiInterval);
+        clearInterval(timerInterval);
         document.removeEventListener("fullscreenchange", handleFullScreenChange);
-        if (videoRef.current && videoRef.current.srcObject) {
-          const stream = videoRef.current.srcObject as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-        }
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
       };
     }
   }, [activeTest]);
+
+  // ── Centralised violation recorder ────────────────────────────────────────
+  const recordViolation = () => {
+    setViolationCount(prev => {
+      const next = prev + 1;
+      if (activeTest) localStorage.setItem(`warns_${activeTest.id}`, next.toString());
+      if (next >= VIOLATION_LIMIT) {
+        terminateTest("proctoring");
+      }
+      return next;
+    });
+  };
+
+  // ── Force-terminate (proctoring / timeout) — saves status='terminated' ────
+  const terminateTest = async (reason: string) => {
+    if (!activeTest) return;
+    const token = localStorage.getItem("token");
+    const timeSpent = Math.floor((activeTest.time_limit * 60 - timeLeft) / 60);
+    try {
+      await axios.post(`${API_BASE_URL}/code-tests/submit`, {
+        test_id: activeTest.id, score: 0,
+        problems_solved: Object.keys(solutions).length,
+        time_taken: `${timeSpent} mins`,
+        status: "terminated"
+      }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (_) { /* already submitted — ignore 409 */ }
+    fetchCodeTests();
+    setActiveTest(null);
+    triggerToast(reason === "timeout" ? "Time expired — test closed." : "Test terminated: proctoring violation limit reached.", "error");
+  };
+
 
   // ============================================================================
   // ⚡ HYBRID EXECUTION LOGIC (The "Anti-Cheese" Rules)
@@ -205,17 +206,40 @@ const StudentDashboard = () => {
 
     // 🟢 CASE 1: PYTHON (Run Locally via Pyodide)
     if (language === 71) {
-      setConsoleOutput("🔹 Running Local Check (Pyodide)...");
-      const localResult = await runPythonLocally(userCode);
+      setConsoleOutput("🔹 Loading Pyodide WASM (first run may take ~10s)...");
+
+      // Extract the first visible (non-hidden) test case input to feed into stdin.
+      // This makes input() and sys.stdin.read() work correctly in the browser.
+      let sampleStdin = "";
+      let expectedOutput = "";
+      try {
+        const prob = activeTest?.problems[currentProblemIndex];
+        const allCases = typeof prob?.test_cases === 'string'
+          ? JSON.parse(prob.test_cases)
+          : prob?.test_cases;
+        const firstPublicCase = (allCases || []).find((c: any) => !c.hidden);
+        sampleStdin = firstPublicCase?.input ?? "";
+        expectedOutput = firstPublicCase?.output ?? "";
+      } catch (_) { }
+
+      const localResult = await runPythonLocally(userCode, sampleStdin);
 
       if (localResult.success) {
-        setExecutionStatus("success");
-        setConsoleOutput(`✅ Output:\n${localResult.output}\n\n(Click 'Submit' to grade against hidden test cases)`);
-        triggerToast("Executed Successfully (Local)", "success");
+        const outTrim = localResult.output.trim();
+        const expTrim = expectedOutput.trim();
+        if (outTrim === expTrim) {
+          setExecutionStatus("success");
+          setConsoleOutput(`✅ Output Matched:\n${localResult.output}\n\n(Click 'Submit' to grade against hidden test cases)`);
+          triggerToast("Executed Successfully (Local)", "success");
+        } else {
+          setExecutionStatus("error");
+          setConsoleOutput(`❌ Output Mismatch:\n\nExpected:\n${expectedOutput}\n\nActual:\n${localResult.output}`);
+          triggerToast("Output Incorrect", "error");
+        }
       } else {
         setExecutionStatus("error");
-        setConsoleOutput(`❌ Local Syntax/Runtime Error:\n${localResult.error}`);
-        triggerToast("Syntax Error", "error");
+        setConsoleOutput(`❌ Python Error:\n${localResult.error}`);
+        triggerToast("Syntax / Runtime Error", "error");
       }
       return; // STOP HERE. Do not hit AWS.
     }
@@ -368,8 +392,9 @@ const StudentDashboard = () => {
   };
 
   const returnToFullScreen = () => {
-    document.documentElement.requestFullscreen();
+    document.documentElement.requestFullscreen().catch(() => { });
     setIsFullScreen(true);
+    setShowWarningOverlay(false);
   };
 
   const handleDownloadCertificate = async (id: number, title: string) => {
@@ -476,14 +501,21 @@ const StudentDashboard = () => {
             </div>
 
             {/* AI Proctoring Cam */}
-            <div className="h-[220px] shrink-0 bg-black rounded-[1.5rem] border border-gray-800 shadow-xl overflow-hidden relative group">
-              <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                <div className={`px-3 py-1.5 rounded-full text-[10px] font-black text-white flex items-center gap-2 shadow-lg backdrop-blur-md ${faceStatus === "ok" ? "bg-green-500/80 border border-green-400" : "bg-red-500/80 border border-red-400 animate-pulse"}`}>
+            {/* Proctoring Status (Camera Removed) */}
+            <div className="h-[120px] shrink-0 bg-black rounded-[1.5rem] border border-gray-800 shadow-xl overflow-hidden relative flex flex-col items-center justify-center text-center p-4">
+              <div className="absolute top-3 left-3 z-10">
+                <div className="px-3 py-1.5 rounded-full text-[10px] font-black text-white bg-green-500/80 border border-green-400 flex items-center gap-2 shadow-lg backdrop-blur-md">
                   <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                  {faceStatus === "ok" ? "AI PROCTORING ACTIVE" : "FACE NOT DETECTED"}
+                  PROCTORING ACTIVE
                 </div>
               </div>
-              <video ref={videoRef} autoPlay muted className="w-full h-full object-cover transform scale-x-[-1] opacity-80 group-hover:opacity-100 transition-opacity" />
+              {violationCount > 0 && (
+                <div className="absolute top-3 right-3 z-10 bg-red-500/80 px-2 py-1 rounded-full text-[9px] font-black text-white border border-red-400 shadow-md">
+                  ⚠️ {violationCount} warning{violationCount > 1 ? 's' : ''}
+                </div>
+              )}
+              <Monitor className="text-gray-600 mb-2" size={32} />
+              <p className="text-xs text-gray-400 font-medium">Activity is being monitored.<br />Do not switch tabs or exit full screen.</p>
             </div>
           </div>
 
@@ -530,18 +562,18 @@ const StudentDashboard = () => {
         </div>
 
         {/* Proctoring Violation Overlay */}
-        {!isFullScreen && (
+        {showWarningOverlay && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center text-center p-8">
             <AlertTriangle size={80} className="text-red-500 mb-8 animate-bounce" />
             <h1 className="text-4xl font-black text-white mb-4 tracking-tighter">Test Interrupted</h1>
             <p className="text-gray-400 max-w-lg mb-10 text-lg leading-relaxed">
-              You have exited full-screen mode. This is a strict proctoring violation. Your action has been recorded.
+              You have exited full-screen mode or switched tabs. This is a strict proctoring violation. Your action has been recorded.
             </p>
             <div className="bg-red-500/10 text-red-500 px-8 py-4 rounded-2xl font-mono font-bold mb-10 border border-red-500/30 text-2xl shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-              Remaining Warnings: {2 - fullScreenWarns}
+              Remaining Warnings: {VIOLATION_LIMIT - violationCount}
             </div>
             <button onClick={returnToFullScreen} className="bg-white text-black hover:bg-gray-200 px-10 py-5 rounded-full font-black tracking-wide transition-all shadow-xl flex items-center gap-3 text-lg">
-              <Monitor size={24} /> RETURN TO FULL SCREEN
+              <Monitor size={24} /> RETURN TO FULL SCREEN AND RESUME
             </button>
           </div>
         )}
@@ -755,23 +787,153 @@ const StudentDashboard = () => {
         {/* TAB: MY COURSES */}
         {activeTab === "learning" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-20">
-            <h2 className="text-3xl font-black mb-8">My Enrolled Courses</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {enrolledCourses.map(c => (
-                <div key={c.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-6 shadow-lg hover:shadow-xl transition-shadow group flex flex-col h-full">
-                  <div className="h-40 bg-gray-100 rounded-xl mb-6 overflow-hidden relative border border-gray-200">
-                    {c.image_url ? <img src={c.image_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={40} /></div>}
-                    <div className="absolute top-3 right-3 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Active</div>
-                  </div>
-                  <h3 className="text-xl font-black mb-2 leading-tight">{c.title}</h3>
-                  <p className="text-sm text-gray-500 font-medium mb-6 line-clamp-2 flex-1">{c.description || "Course description goes here."}</p>
-                  <button onClick={() => navigate(`/course/${c.id}/player`)} className="w-full bg-black text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
-                    <PlayCircle size={18} /> Resume Journey
-                  </button>
-                </div>
-              ))}
-              {enrolledCourses.length === 0 && <p className="col-span-full text-center text-gray-500 font-bold py-20">You are not enrolled in any courses yet.</p>}
+            <div className="mb-10">
+              <h2 className="text-3xl font-black mb-2 tracking-tight">My Enrolled Courses</h2>
+              <p className="text-gray-500 font-bold">Pick up where you left off or review completed materials.</p>
             </div>
+
+            {enrolledCourses.length === 0 ? (
+              <div className="w-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl py-20">
+                <Compass size={48} className="mb-4 text-gray-300" />
+                <p className="text-lg font-bold">You are not enrolled in any courses yet. Start exploring!</p>
+                <button onClick={() => setActiveTab("explore")} className="mt-4 bg-black text-white px-6 py-2 rounded-full font-bold">Explore Catalog</button>
+              </div>
+            ) : (
+              <div className="space-y-16">
+
+                {/* IN PROGRESS COURSES */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                    <div className="w-2 h-6 bg-blue-500 rounded-full"></div> In Progress ({enrolledCourses.filter(c => c.progress < 100).length})
+                  </h3>
+
+                  {enrolledCourses.filter(c => c.progress < 100).length === 0 ? (
+                    <p className="text-sm font-bold text-gray-400 px-4">No courses currently in progress.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {enrolledCourses.filter(c => c.progress < 100).map((c: any) => (
+                        <div key={c.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-6 shadow-lg hover:shadow-xl transition-all group flex flex-col h-full relative overflow-hidden">
+
+                          {/* RIBBON */}
+                          <div className="absolute top-5 -right-8 bg-blue-500 text-white text-[10px] font-black py-1 px-10 rotate-45 uppercase tracking-widest shadow-md z-20">
+                            In Progress
+                          </div>
+
+                          <div className="h-40 bg-gray-100 rounded-xl mb-6 overflow-hidden relative border border-gray-200">
+                            {c.image_url ? <img src={c.image_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={40} /></div>}
+
+                            {/* PAYMENT INDICATOR */}
+                            <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+                              {c.enrollment_type === 'trial' ? (
+                                <span className="bg-orange-500/90 backdrop-blur-md text-white border border-orange-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                  <Clock size={12} /> {c.days_left ?? 0} Days Trial
+                                </span>
+                              ) : (
+                                <span className="bg-emerald-500/90 backdrop-blur-md text-white border border-emerald-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                  <CheckCircle size={12} /> Paid
+                                </span>
+                              )}
+                            </div>
+
+                            {/* FINALIZED INDICATOR */}
+                            <div className="absolute bottom-3 left-3">
+                              {c.is_finalized ? (
+                                <span className="bg-black/80 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest border border-white/20">Finalized</span>
+                              ) : (
+                                <span className="bg-white/80 backdrop-blur-md text-gray-600 border border-gray-300 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">Draft</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <h3 className="text-xl font-black mb-1 leading-tight text-gray-900 tracking-tight pr-8">{c.title}</h3>
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-blue-500" style={{ width: `${c.progress || 0}%` }}></div>
+                            </div>
+                            <span className="text-[10px] font-black text-blue-600">{c.progress || 0}%</span>
+                          </div>
+
+                          <p className="text-sm text-gray-500 font-medium mb-6 line-clamp-2 flex-1">{c.description || "Course description goes here."}</p>
+
+                          <button onClick={() => navigate(`/course/${c.id}/player`)} className="w-full bg-black text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors shadow-md">
+                            <PlayCircle size={18} /> Resume Journey
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* COMPLETED COURSES */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                    <div className="w-2 h-6 bg-emerald-500 rounded-full"></div> Completed ({enrolledCourses.filter(c => c.progress === 100).length})
+                  </h3>
+
+                  {enrolledCourses.filter(c => c.progress === 100).length === 0 ? (
+                    <p className="text-sm font-bold text-gray-400 px-4">No completed courses yet. Keep learning!</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {enrolledCourses.filter(c => c.progress === 100).map((c: any) => (
+                        <div key={c.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-6 shadow-lg hover:shadow-xl transition-all group flex flex-col h-full relative overflow-hidden ring-1 ring-emerald-100">
+
+                          {/* RIBBON */}
+                          <div className="absolute top-5 -right-8 bg-emerald-500 text-white text-[10px] font-black py-1 px-10 rotate-45 uppercase tracking-widest shadow-md z-20">
+                            Completed
+                          </div>
+
+                          <div className="h-40 bg-emerald-50/50 rounded-xl mb-6 overflow-hidden relative border border-emerald-100">
+                            {c.image_url ? <img src={c.image_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center text-emerald-200"><Award size={40} /></div>}
+
+                            {/* PAYMENT INDICATOR */}
+                            <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+                              {c.enrollment_type === 'trial' ? (
+                                <span className="bg-orange-500/90 backdrop-blur-md text-white border border-orange-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                  <Clock size={12} /> {c.days_left ?? 0} Days Trial
+                                </span>
+                              ) : (
+                                <span className="bg-emerald-500/90 backdrop-blur-md text-white border border-emerald-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                  <CheckCircle size={12} /> Paid
+                                </span>
+                              )}
+                            </div>
+
+                            {/* FINALIZED INDICATOR */}
+                            <div className="absolute bottom-3 left-3">
+                              {c.is_finalized ? (
+                                <span className="bg-black/80 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest border border-white/20">Finalized</span>
+                              ) : (
+                                <span className="bg-white/80 backdrop-blur-md text-gray-600 border border-gray-300 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">Draft</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <h3 className="text-xl font-black mb-1 leading-tight text-gray-900 tracking-tight pr-8">{c.title}</h3>
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `100%` }}></div>
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-600">100%</span>
+                          </div>
+
+                          <p className="text-sm text-gray-500 font-medium mb-6 line-clamp-2 flex-1">{c.description || "Course description goes here."}</p>
+
+                          <div className="flex gap-2">
+                            <button onClick={() => navigate(`/course/${c.id}/player`)} className="flex-1 bg-white border border-gray-200 text-black font-bold py-3.5 rounded-xl flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm text-sm tracking-tight">
+                              Review
+                            </button>
+                            <button onClick={() => { setActiveTab("certificates"); }} className="flex-[1.5] bg-emerald-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow-md text-sm tracking-tight">
+                              <Award size={16} /> Claim
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -795,7 +957,11 @@ const StudentDashboard = () => {
                 codeTests.map(test => (
                   <div key={test.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div>
-                      <h3 className="text-xl font-black mb-2">{test.title}</h3>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-black">{test.title}</h3>
+                        {test.result_status === "terminated" && <span className="text-[10px] font-black bg-red-100 text-red-600 px-2 py-1 rounded-md uppercase tracking-widest border border-red-200 shadow-sm">Course Terminated</span>}
+                        {test.result_status === "submitted" && <span className="text-[10px] font-black bg-green-100 text-green-700 px-2 py-1 rounded-md uppercase tracking-widest border border-green-200 shadow-sm">Test Submitted Successfully</span>}
+                      </div>
                       <div className="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
                         <span className="flex items-center gap-1"><Clock size={14} /> {test.time_limit} Mins</span>
                         <span className="flex items-center gap-1"><Code size={14} /> Standard</span>
@@ -814,51 +980,85 @@ const StudentDashboard = () => {
         {/* TAB: CERTIFICATES */}
         {activeTab === "certificates" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-20">
-            <div className="mb-8">
-              <h2 className="text-3xl font-black mb-2">My Certifications</h2>
-              <p className="text-gray-500 font-medium">Track your completed courses and claim your rewards.</p>
+            <div className="mb-10">
+              <h2 className="text-3xl font-black mb-2 tracking-tight">My Certifications</h2>
+              <p className="text-gray-500 font-bold">Track your completed courses and claim your rewards.</p>
             </div>
 
-            <div className="space-y-4">
-              {enrolledCourses.length === 0 ? (
-                <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-12 text-center shadow-sm">
-                  <Award size={48} className="mx-auto text-gray-300 mb-4" />
-                  <p className="text-lg font-bold text-gray-500">You haven't enrolled in any courses yet.</p>
-                </div>
-              ) : (
-                enrolledCourses.map((course: any) => {
-                  // Check if progress is 100
-                  const isComplete = course.progress === 100;
-
-                  return (
-                    <div key={course.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                      <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shrink-0">
-                          {course.image_url ? <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" /> : <BookOpen size={24} className="m-auto mt-4 text-gray-300" />}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-black text-gray-900">{course.title}</h3>
-                          <div className="flex items-center gap-3 mt-2">
-                            <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${isComplete ? 'bg-green-500' : 'bg-black'}`} style={{ width: `${course.progress || 0}%` }}></div>
+            {enrolledCourses.length === 0 ? (
+              <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-12 text-center shadow-sm">
+                <Award size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-lg font-bold text-gray-500">You haven't enrolled in any courses yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-12">
+                {/* COMPLETED SECTION */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-2 mb-4">Completed ({enrolledCourses.filter(c => c.progress === 100).length})</h3>
+                  {enrolledCourses.filter(c => c.progress === 100).length === 0 ? (
+                    <p className="text-sm font-bold text-gray-400 py-4 px-2">No completed courses yet. Keep learning!</p>
+                  ) : (
+                    enrolledCourses.filter(c => c.progress === 100).map((course: any) => (
+                      <div key={course.id} className="bg-white border border-gray-100 rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                          <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0">
+                            {course.image_url ? <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" /> : <BookOpen size={24} className="m-auto mt-4 text-gray-300" />}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-gray-900 tracking-tight">{course.title}</h3>
+                            <div className="flex items-center gap-4 mt-2.5">
+                              <div className="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-green-500" style={{ width: `100%` }}></div>
+                              </div>
+                              <span className="text-xs font-black text-green-600">100% Complete</span>
                             </div>
-                            <span className="text-xs font-bold text-gray-500">{course.progress || 0}% Complete</span>
                           </div>
                         </div>
+                        <button
+                          onClick={() => handleDownloadCertificate(course.id, course.title)}
+                          className="px-6 py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all min-w-[200px] bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                        >
+                          <Unlock size={18} /> Claim Certificate
+                        </button>
                       </div>
+                    ))
+                  )}
+                </div>
 
-                      <button
-                        onClick={() => isComplete && handleDownloadCertificate(course.id, course.title)}
-                        disabled={!isComplete}
-                        className={`px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all min-w-[200px] ${isComplete ? 'bg-green-500 text-white hover:bg-green-600 shadow-md' : 'bg-red-50 text-red-400 border border-red-100 cursor-not-allowed'}`}
-                      >
-                        {isComplete ? <><Unlock size={18} /> Claim Certificate</> : <><Lock size={18} /> Locked</>}
-                      </button>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                {/* IN PROGRESS SECTION */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-2 mb-4">In Progress ({enrolledCourses.filter(c => c.progress < 100).length})</h3>
+                  {enrolledCourses.filter(c => c.progress < 100).length === 0 ? (
+                    <p className="text-sm font-bold text-gray-400 py-4 px-2">No courses currently in progress.</p>
+                  ) : (
+                    enrolledCourses.filter(c => c.progress < 100).map((course: any) => (
+                      <div key={course.id} className="bg-white/60 border border-gray-100 rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6 opacity-90 hover:opacity-100">
+                        <div className="flex items-center gap-5">
+                          <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0 grayscale-[50%]">
+                            {course.image_url ? <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" /> : <BookOpen size={24} className="m-auto mt-4 text-gray-300" />}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-gray-900 tracking-tight">{course.title}</h3>
+                            <div className="flex items-center gap-4 mt-2.5">
+                              <div className="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-[#ff4a4a]" style={{ width: `${course.progress || 0}%` }}></div>
+                              </div>
+                              <span className="text-xs font-black text-gray-500">{course.progress || 0}% Complete</span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          disabled
+                          className="px-6 py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all min-w-[200px] bg-red-50 text-red-500 border border-red-100 cursor-not-allowed"
+                        >
+                          <Lock size={18} /> Locked
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 

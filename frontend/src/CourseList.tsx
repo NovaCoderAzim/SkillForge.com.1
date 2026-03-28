@@ -67,8 +67,8 @@ const CourseList = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4 }}
                     >
-                        <h1 className="text-4xl font-extrabold text-black tracking-tight mb-2">My Courses</h1>
-                        <p className="text-slate-500 text-lg">Manage, build, and publish your curriculum.</p>
+                        <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2" style={{ color: '#111' }}>My Courses</h1>
+                        <p className="text-gray-600 text-base font-semibold">Manage, build, and publish your curriculum.</p>
                     </motion.div>
 
                     <motion.button

@@ -132,6 +132,11 @@ class TestSubmission(BaseModel):
     score: int
     problems_solved: int
     time_taken: str
+    status: str = "submitted"  # "submitted" | "terminated"
+
+class TestTerminate(BaseModel):
+    test_id: int
+    time_taken: str
 
 class ContentUpdate(BaseModel):
     title: Optional[str] = None
@@ -498,16 +503,58 @@ def create_code_test(test: CodeTestCreate, db: Session = Depends(get_db), curren
     db.commit()
     return {"message": "Test Created Successfully!"}
 
+@app.put("/api/v1/code-tests/{test_id}")
+def update_code_test(test_id: int, test: CodeTestCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "instructor": raise HTTPException(status_code=403)
+    
+    existing_test = db.query(models.CodeTest).filter(models.CodeTest.id == test_id, models.CodeTest.instructor_id == current_user.id).first()
+    if not existing_test:
+        raise HTTPException(status_code=404, detail="Test not found")
+        
+    existing_test.title = test.title
+    existing_test.pass_key = test.pass_key
+    existing_test.time_limit = test.time_limit
+    
+    # Cascade delete old problems and replace with new
+    db.query(models.Problem).filter(models.Problem.test_id == test_id).delete()
+    
+    for prob in test.problems:
+        new_prob = models.Problem(
+            test_id=existing_test.id, 
+            title=prob.title, 
+            description=prob.description, 
+            difficulty=prob.difficulty, 
+            test_cases=prob.test_cases 
+        )
+        db.add(new_prob)
+    db.commit()
+    return {"message": "Test Updated Successfully!"}
+
 @app.get("/api/v1/code-tests")
 def get_code_tests(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role == "instructor": 
-        return db.query(models.CodeTest).filter(models.CodeTest.instructor_id == current_user.id).all()
+        tests = db.query(models.CodeTest).filter(models.CodeTest.instructor_id == current_user.id).all()
+        return [{
+            "id": t.id,
+            "title": t.title,
+            "pass_key": t.pass_key,
+            "time_limit": t.time_limit,
+            "problems": [{
+                "id": p.id,
+                "title": p.title,
+                "description": p.description,
+                "difficulty": getattr(p, "difficulty", "Easy"),
+                "test_cases": p.test_cases
+            } for p in t.problems]
+        } for t in tests]
     tests = db.query(models.CodeTest).all()
     response_data = []
     for t in tests:
         submission = db.query(models.TestResult).filter(models.TestResult.test_id == t.id, models.TestResult.user_id == current_user.id).first()
         response_data.append({
-            "id": t.id, "title": t.title, "time_limit": t.time_limit, "problems": t.problems, "completed": True if submission else False
+            "id": t.id, "title": t.title, "time_limit": t.time_limit, "problems": t.problems,
+            "completed": True if submission else False,
+            "result_status": submission.status if submission else None  # "submitted" | "terminated" | None
         })
     return response_data
 
@@ -525,14 +572,73 @@ def start_code_test(test_id: int, pass_key: str = Form(...), db: Session = Depen
 
 @app.post("/api/v1/code-tests/submit")
 def submit_test_result(sub: TestSubmission, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    result = models.TestResult(test_id=sub.test_id, user_id=current_user.id, score=sub.score, problems_solved=sub.problems_solved, time_taken=sub.time_taken)
-    db.add(result); db.commit(); return {"message": "Test Submitted Successfully!"}
+    # Prevent duplicate submissions
+    existing = db.query(models.TestResult).filter(models.TestResult.test_id == sub.test_id, models.TestResult.user_id == current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Result already recorded.")
+    result = models.TestResult(
+        test_id=sub.test_id, user_id=current_user.id,
+        score=sub.score, problems_solved=sub.problems_solved,
+        time_taken=sub.time_taken, status=sub.status
+    )
+    db.add(result); db.commit()
+    return {"message": "Test result saved."}
 
 @app.get("/api/v1/code-tests/{test_id}/results")
 def get_test_results(test_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "instructor": raise HTTPException(status_code=403)
     results = db.query(models.TestResult).filter(models.TestResult.test_id == test_id).all()
-    return [{"student_name": r.student.full_name, "email": r.student.email, "score": r.score, "problems_solved": r.problems_solved, "time_taken": r.time_taken, "submitted_at": r.submitted_at.strftime("%Y-%m-%d %H:%M")} for r in results]
+    return [{
+        "student_name": r.student.full_name,
+        "email": r.student.email,
+        "score": r.score,
+        "problems_solved": r.problems_solved,
+        "time_taken": r.time_taken,
+        "status": r.status,
+        "submitted_at": r.submitted_at.strftime("%Y-%m-%d %H:%M")
+    } for r in results]
+
+
+@app.delete("/api/v1/code-tests/{test_id}")
+def delete_code_test(test_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "instructor": raise HTTPException(status_code=403)
+    test = db.query(models.CodeTest).filter(models.CodeTest.id == test_id, models.CodeTest.instructor_id == current_user.id).first()
+    if not test: raise HTTPException(status_code=404, detail="Test not found.")
+    # Cascade delete
+    db.query(models.TestResult).filter(models.TestResult.test_id == test_id).delete()
+    db.query(models.Problem).filter(models.Problem.test_id == test_id).delete()
+    db.delete(test)
+    db.commit()
+    return {"message": "Test deleted."}
+
+
+@app.get("/api/v1/code-tests/{test_id}/export")
+def export_test_results(test_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "instructor": raise HTTPException(status_code=403)
+    test = db.query(models.CodeTest).filter(models.CodeTest.id == test_id).first()
+    if not test: raise HTTPException(status_code=404)
+    results = db.query(models.TestResult).filter(models.TestResult.test_id == test_id).all()
+    rows = [{
+        "Name": r.student.full_name,
+        "Email": r.student.email,
+        "Score": r.score,
+        "Problems Solved": r.problems_solved,
+        "Time Taken": r.time_taken,
+        "Status": r.status.capitalize() if r.status else "Submitted",
+        "Submitted At": r.submitted_at.strftime("%Y-%m-%d %H:%M")
+    } for r in results]
+    df = pd.DataFrame(rows)
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Results')
+    buf.seek(0)
+    filename = f"{test.title.replace(' ', '_')}_results.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
 
 @app.post("/api/v1/execute")
 def execute_code(req: CodeExecutionRequest, db: Session = Depends(get_db)):
@@ -548,7 +654,23 @@ def execute_code(req: CodeExecutionRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/v1/courses")
 def get_courses(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role == "instructor": return db.query(models.Course).filter(models.Course.instructor_id == current_user.id).all()
+    if current_user.role == "instructor":
+        courses = db.query(models.Course).filter(models.Course.instructor_id == current_user.id).all()
+        result = []
+        for c in courses:
+            student_count = db.query(models.Enrollment).filter(models.Enrollment.course_id == c.id).count()
+            result.append({
+                "id": c.id,
+                "title": c.title,
+                "description": c.description,
+                "price": c.price,
+                "image_url": c.image_url,
+                "is_published": c.is_published,
+                "is_finalized": getattr(c, "is_finalized", False),
+                "students": student_count,
+                "rating": round(4.5 + (student_count % 5) * 0.1, 1) if student_count > 0 else 0,
+            })
+        return result
     return db.query(models.Course).filter(models.Course.is_published == True).all()
 
 @app.post("/api/v1/courses")
@@ -693,7 +815,37 @@ def generate_pdf_endpoint(course_id: int, db: Session = Depends(get_db), current
 @app.get("/api/v1/my-courses")
 def get_my_courses(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     enrollments = db.query(models.Enrollment).filter(models.Enrollment.user_id == current_user.id).all()
-    return [e.course for e in enrollments]
+    
+    response = []
+    for e in enrollments:
+        course = e.course
+        all_lessons = [item.id for module in course.modules for item in module.items]
+        if not all_lessons:
+            progress = 0
+        else:
+            completed = db.query(models.LessonProgress).filter(
+                models.LessonProgress.user_id == current_user.id,
+                models.LessonProgress.content_item_id.in_(all_lessons)
+            ).count()
+            progress = int((completed / len(all_lessons)) * 100)
+            
+        days_left = None
+        if getattr(e, "expiry_date", None):
+            days_left = (e.expiry_date - datetime.utcnow()).days
+            
+        response.append({
+            "id": course.id,
+            "title": course.title,
+            "description": course.description,
+            "price": course.price,
+            "image_url": course.image_url,
+            "is_finalized": getattr(course, "is_finalized", False),
+            "progress": progress,
+            "enrollment_type": getattr(e, "enrollment_type", "paid"),
+            "days_left": days_left
+        })
+        
+    return response
 
 @app.post("/api/v1/user/change-password")
 def change_password(req: PasswordChange, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

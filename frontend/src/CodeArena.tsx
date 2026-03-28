@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
-    Plus, Code, ChevronRight, X, Sparkles, Check, Trash2, AlertCircle, CheckCircle
+    Plus, Code, ChevronRight, ChevronDown, X, Sparkles, Check, Trash2, AlertCircle, CheckCircle, Download, Edit2, Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -9,6 +9,11 @@ const CodeArena = () => {
     const [showModal, setShowModal] = useState(false);
     const [tests, setTests] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    
+    // Management states
+    const [expandedTestId, setExpandedTestId] = useState<number | null>(null);
+    const [testResults, setTestResults] = useState<any[]>([]);
+    const [editingTestId, setEditingTestId] = useState<number | null>(null);
 
     // Toast System
     const [toast, setToast] = useState({ show: false, msg: "", type: "success" });
@@ -43,6 +48,61 @@ const CodeArena = () => {
             const res = await axios.get("http://127.0.0.1:8000/api/v1/code-tests", { headers: { Authorization: `Bearer ${token}` } });
             setTests(res.data);
         } catch (err) { console.error(err); }
+    };
+
+    const loadTestResults = async (testId: number) => {
+        if (expandedTestId === testId) {
+            setExpandedTestId(null);
+            return;
+        }
+        const token = localStorage.getItem("token");
+        try {
+            const res = await axios.get(`http://127.0.0.1:8000/api/v1/code-tests/${testId}/results`, { headers: { Authorization: `Bearer ${token}` } });
+            setTestResults(res.data);
+            setExpandedTestId(testId);
+        } catch (err) { triggerToast("Failed to load results", "error"); }
+    };
+
+    const handleExport = async (testId: number, title: string) => {
+        const token = localStorage.getItem("token");
+        try {
+            const res = await axios.get(`http://127.0.0.1:8000/api/v1/code-tests/${testId}/export`, { 
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob' 
+            });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${title.replace(/\\s+/g, "_")}_results.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            triggerToast("Exported Successfully", "success");
+        } catch (err) { triggerToast("Export failed", "error"); }
+    };
+
+    const handleDelete = async (testId: number) => {
+        if (!confirm("Are you sure you want to delete this test?")) return;
+        const token = localStorage.getItem("token");
+        try {
+            await axios.delete(`http://127.0.0.1:8000/api/v1/code-tests/${testId}`, { headers: { Authorization: `Bearer ${token}` } });
+            triggerToast("Test deleted successfully", "success");
+            fetchTests();
+        } catch (err) { triggerToast("Failed to delete", "error"); }
+    };
+
+    const handleEdit = (test: any) => {
+        setEditingTestId(test.id);
+        setChallengeTitle(test.title);
+        setPassKey(test.pass_key);
+        setTimeLimit(test.time_limit);
+        // Safely format problems for the cart: ensure test_cases is always a string
+        const formattedProblems = (test.problems || []).map((p: any) => ({
+            ...p,
+            test_cases: typeof p.test_cases === 'string' ? p.test_cases : JSON.stringify(p.test_cases)
+        }));
+        setAddedProblems(formattedProblems);
+        setShowModal(true);
     };
 
     // Γ£¿ AI GENERATION FUNCTION
@@ -109,15 +169,21 @@ const CodeArena = () => {
                 time_limit: timeLimit,
                 problems: addedProblems // Send the list of problems
             };
-            await axios.post("http://127.0.0.1:8000/api/v1/code-tests", payload, { headers: { Authorization: `Bearer ${token}` } });
+            if (editingTestId) {
+                await axios.put(`http://127.0.0.1:8000/api/v1/code-tests/${editingTestId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                triggerToast("Challenge Updated Successfully!", "success");
+            } else {
+                await axios.post("http://127.0.0.1:8000/api/v1/code-tests", payload, { headers: { Authorization: `Bearer ${token}` } });
+                triggerToast("Challenge Created Successfully!", "success");
+            }
             setShowModal(false);
             fetchTests();
-            triggerToast("Challenge Created Successfully!", "success");
+            
             // Reset All
-            setChallengeTitle(""); setPassKey(""); setAddedProblems([]);
+            setEditingTestId(null); setChallengeTitle(""); setPassKey(""); setAddedProblems([]);
         } catch (err) {
             console.error(err);
-            triggerToast("Failed to create challenge", "error");
+            triggerToast("Failed to save challenge", "error");
         } finally {
             setLoading(false);
         }
@@ -132,7 +198,7 @@ const CodeArena = () => {
                         <h1 className="text-4xl font-extrabold text-black tracking-tight drop-shadow-sm">Code Arena Architect</h1>
                         <p className="text-gray-600 font-bold mt-2">Create and manage coding challenges.</p>
                     </div>
-                    <button onClick={() => setShowModal(true)} className="bg-black hover:bg-gray-800 text-white px-6 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xl shadow-gray-200"><Plus size={20} /> Create Challenge</button>
+                    <button onClick={() => { setEditingTestId(null); setChallengeTitle(""); setPassKey(""); setAddedProblems([]); setShowModal(true); }} className="bg-black hover:bg-gray-800 text-white px-6 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xl shadow-gray-200"><Plus size={20} /> Create Challenge</button>
                 </div>
 
                 {/* Challenge List */}
@@ -144,18 +210,68 @@ const CodeArena = () => {
                         </div>
                     ) : (
                         tests.map((test) => (
-                            <div key={test.id} className="bg-white/90 backdrop-blur p-6 rounded-2xl border border-gray-200 flex justify-between items-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                <div className="flex items-center gap-5">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl border border-gray-300 flex items-center justify-center text-black shadow-sm"><Code size={32} /></div>
-                                    <div>
-                                        <h3 className="font-extrabold text-black text-xl mb-1">{test.title}</h3>
-                                        <div className="flex gap-4 text-sm text-gray-600 mt-2 font-bold tracking-wide">
-                                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></span> {test.time_limit} mins</span>
-                                            <span className="bg-gray-100 px-3 py-1 rounded-md text-xs font-mono text-black border border-gray-300 shadow-inner">Key: {test.pass_key}</span>
+                            <div key={test.id} className="bg-white/90 backdrop-blur rounded-2xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
+                                <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-5">
+                                        <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl border border-gray-300 flex items-center justify-center text-black shadow-sm"><Code size={32} /></div>
+                                        <div>
+                                            <h3 className="font-extrabold text-black text-xl mb-1">{test.title}</h3>
+                                            <div className="flex gap-4 text-sm text-gray-600 mt-2 font-bold tracking-wide">
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></span> {test.time_limit} mins</span>
+                                                <span className="bg-gray-100 px-3 py-1 rounded-md text-xs font-mono text-black border border-gray-300 shadow-inner">Key: {test.pass_key}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => loadTestResults(test.id)} className="px-4 py-2 font-bold text-sm bg-gray-100 text-black hover:bg-gray-200 rounded-lg flex items-center gap-2 transition-colors">
+                                            <Users size={16} /> Results {expandedTestId === test.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                        </button>
+                                        <button onClick={() => handleEdit(test)} className="p-2 bg-white border border-gray-200 text-black hover:bg-black hover:text-white rounded-lg shadow-sm transition-colors" title="Edit Test">
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button onClick={() => handleExport(test.id, test.title)} className="p-2 bg-white border border-gray-200 text-black hover:bg-blue-600 hover:text-white hover:border-blue-600 rounded-lg shadow-sm transition-colors" title="Export CSV">
+                                            <Download size={16} />
+                                        </button>
+                                        <button onClick={() => handleDelete(test.id)} className="p-2 bg-white border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-lg shadow-sm transition-colors" title="Delete Test">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <button className="w-12 h-12 flex items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-black text-black hover:text-white shadow-sm transition-colors"><ChevronRight size={20} /></button>
+                                {expandedTestId === test.id && (
+                                    <div className="border-t border-gray-100 bg-gray-50 p-6">
+                                        <h4 className="font-bold text-black mb-4 uppercase tracking-widest text-xs">Student Completions</h4>
+                                        {testResults.length === 0 ? (
+                                            <p className="text-sm font-medium text-gray-500">No students have taken this test yet.</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left font-medium text-gray-700">
+                                                    <thead>
+                                                        <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                                            <th className="pb-3">Student Name</th>
+                                                            <th className="pb-3">Score</th>
+                                                            <th className="pb-3">Solved</th>
+                                                            <th className="pb-3">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {testResults.map((r, i) => (
+                                                            <tr key={i}>
+                                                                <td className="py-3 font-bold text-black">{r.student_name}</td>
+                                                                <td className="py-3">{r.score}%</td>
+                                                                <td className="py-3">{r.problems_solved}</td>
+                                                                <td className="py-3">
+                                                                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border ${r.status === 'terminated' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                                                                        {r.status || "Completed"}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))
                     )}

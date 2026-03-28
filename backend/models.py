@@ -116,10 +116,12 @@ class TestResult(Base):
     score = Column(Integer)
     problems_solved = Column(Integer)
     time_taken = Column(String) # "45 mins"
+    status = Column(String, default="submitted")  # "submitted" | "terminated"
     submitted_at = Column(DateTime, default=datetime.utcnow)
     
     student = relationship("User", back_populates="test_results")
     test = relationship("CodeTest", back_populates="results")
+
 
 
 # Add this to the bottom of models.py

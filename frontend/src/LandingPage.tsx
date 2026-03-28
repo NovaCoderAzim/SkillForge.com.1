@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import {
-  Terminal, Shield, ChevronRight, Layers, Code2, Play, 
+  Terminal, Shield, ChevronRight, Layers, Code2, Play,
   CheckCircle, ArrowRight, X, Menu, Globe, Server, Lock,
-  Sparkles, Users, Star, Plus, GraduationCap, Presentation, 
+  Sparkles, Users, Star, Plus, GraduationCap, Presentation,
   BarChart3, BookOpen, ArrowUp, ArrowUpRight, Github, Twitter, Linkedin
 } from "lucide-react";
 
@@ -147,7 +147,7 @@ const staggerWrap = {
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" as const } },
 };
 
 // ============================================================================
@@ -157,13 +157,13 @@ const fadeUp = {
 const AccordionItem = ({ faq, isOpen, onClick }: { faq: FAQ, isOpen: boolean, onClick: () => void }) => {
   return (
     <div className="border-b border-gray-200 dark:border-white/10 overflow-hidden">
-      <button 
+      <button
         onClick={onClick}
         className="w-full py-6 flex items-center justify-between text-left focus:outline-none group"
       >
         <span className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white transition-colors">{faq.question}</span>
-        <motion.div 
-          animate={{ rotate: isOpen ? 45 : 0 }} 
+        <motion.div
+          animate={{ rotate: isOpen ? 45 : 0 }}
           className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center border border-gray-200 dark:border-white/10 shrink-0 transition-colors group-hover:bg-gray-200 dark:group-hover:bg-white/10"
         >
           <Plus size={16} className={isOpen ? "text-black dark:text-white" : "text-gray-500 dark:text-gray-400"} />
@@ -216,16 +216,24 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-gray-200 font-sans selection:bg-gray-300 selection:text-black overflow-x-hidden">
-      
+
+      {/* ── SCROLL PROGRESS BAR ── */}
+      <motion.div
+        className="fixed top-0 left-0 h-[2px] z-[100] origin-left"
+        style={{
+          scaleX: scrollYProgress,
+          background: "linear-gradient(90deg, #6366f1, #a855f7, #ec4899)",
+        }}
+      />
+
       {/* ------------------------------------------------------------------------
           NAVIGATION BAR (Glassmorphic)
       ------------------------------------------------------------------------- */}
-      <header 
-        className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 border-b ${
-          scrolled 
-            ? "bg-black/70 backdrop-blur-xl border-white/10 py-4 shadow-2xl" 
-            : "bg-transparent border-transparent py-6"
-        }`}
+      <header
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 border-b ${scrolled
+          ? "bg-black/70 backdrop-blur-xl border-white/10 py-4 shadow-2xl"
+          : "bg-transparent border-transparent py-6"
+          }`}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
           {/* Logo */}
@@ -239,9 +247,9 @@ export default function LandingPage() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 bg-white/5 border border-white/10 px-6 py-2.5 rounded-full backdrop-blur-md shadow-sm">
             {NAV_LINKS.map((link) => (
-              <a 
-                key={link.name} 
-                href={link.href} 
+              <a
+                key={link.name}
+                href={link.href}
                 className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
               >
                 {link.name}
@@ -260,7 +268,7 @@ export default function LandingPage() {
           </div>
 
           {/* Mobile Toggle */}
-          <button 
+          <button
             className="md:hidden text-white p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -271,7 +279,7 @@ export default function LandingPage() {
         {/* Mobile Menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
-            <motion.div 
+            <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -279,9 +287,9 @@ export default function LandingPage() {
             >
               <div className="flex flex-col px-6 py-8 gap-6">
                 {NAV_LINKS.map((link) => (
-                  <a 
-                    key={link.name} 
-                    href={link.href} 
+                  <a
+                    key={link.name}
+                    href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className="text-lg font-medium text-gray-300 hover:text-white"
                   >
@@ -304,35 +312,41 @@ export default function LandingPage() {
         {/* Subtle Background Glows */}
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-white/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-gray-500/10 rounded-full blur-[150px] pointer-events-none" />
-        
+
         <div className="max-w-6xl mx-auto w-full relative z-10 flex flex-col items-center text-center">
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 mb-8 backdrop-blur-xl shadow-lg"
           >
-            <Sparkles size={16} className="text-gray-100" /> 
-            <span>The Premier Platform for Higher Education</span>
+            <Sparkles size={14} className="text-purple-300" />
+            <span> Where Instructors Teach &amp; Students Thrive</span>
+            <span className="bg-white/10 text-white text-[10px] font-black px-2 py-0.5 rounded-full">NEW</span>
           </motion.div>
 
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
             className="text-5xl md:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[1.05] mb-8"
           >
-            Empower Your Campus. <br className="hidden md:block" />
+            One Platform.
+            <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-300 to-gray-500">
-              Elevate Your Code.
+              Infinite Learning.{" "}
             </span>
           </motion.h1>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
             className="text-lg md:text-xl text-gray-400 mb-12 max-w-3xl leading-relaxed"
           >
-            SkillForge bridges the gap between ambitious students and expert instructors. We provide zero-setup coding arenas for learners, and automated grading, proctoring, and analytics for educators.
+            SkillForge is the bridge between{" "}
+            <span className="text-white font-semibold">instructors who build &amp; guide</span>
+            {" "}and{" "}
+            <span className="text-white font-semibold">students who learn, code &amp; earn certificates</span>.
+            {" "}One institution. One platform. Total clarity.
           </motion.p>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
           >
@@ -344,15 +358,33 @@ export default function LandingPage() {
             </button>
           </motion.div>
 
+          {/* Animated Stats Row */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.45 }}
+            className="flex flex-wrap justify-center gap-8 md:gap-16 mt-10 mb-4"
+          >
+            {[
+              { val: "12,400+", label: "Active Students" },
+              { val: "340+", label: "Courses Delivered" },
+              { val: "48+", label: "Partner Institutions" },
+              { val: "99.9%", label: "Uptime SLA" },
+            ].map(s => (
+              <div key={s.label} className="text-center">
+                <div className="text-2xl md:text-3xl font-black text-white">{s.val}</div>
+                <div className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">{s.label}</div>
+              </div>
+            ))}
+          </motion.div>
+
           {/* Hero Visual Mockup - Floating Image + IDE */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.5 }}
             className="w-full max-w-5xl mt-24 relative"
           >
-             {/* Background Image Layer */}
-             <div className="absolute inset-0 -top-10 -bottom-10 z-0 opacity-30 rounded-[3rem] overflow-hidden blur-sm">
-                <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" alt="Students" className="w-full h-full object-cover" />
-             </div>
+            {/* Background Image Layer */}
+            <div className="absolute inset-0 -top-10 -bottom-10 z-0 opacity-30 rounded-[3rem] overflow-hidden blur-sm">
+              <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" alt="Students" className="w-full h-full object-cover" />
+            </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#050505]/90 backdrop-blur-2xl overflow-hidden shadow-2xl shadow-black relative z-10 transform perspective-1000 rotateX-2">
               <div className="h-12 bg-white/5 flex items-center px-4 border-b border-white/10 justify-between">
@@ -362,7 +394,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-gray-600"></div>
                 </div>
                 <div className="text-xs font-mono text-gray-400 bg-white/5 px-4 py-1 rounded-full border border-white/5 flex items-center gap-2">
-                  <Lock size={12}/> SkillForge Secure Arena
+                  <Lock size={12} /> SkillForge Secure Arena
                 </div>
                 <div className="w-12"></div> {/* Spacer */}
               </div>
@@ -377,17 +409,17 @@ export default function LandingPage() {
                 <div className="flex-1 p-6 font-mono text-sm md:text-base leading-relaxed overflow-hidden relative">
                   <div className="flex">
                     <div className="text-gray-600 select-none pr-4 text-right border-r border-white/10 mr-4">
-                      1<br/>2<br/>3<br/>4<br/>5
+                      1<br />2<br />3<br />4<br />5
                     </div>
                     <div className="text-gray-300">
-                      <span className="text-gray-500 italic"># Dynamic Programming - Student Submission</span><br/>
-                      <span className="text-blue-400">def</span> <span className="text-gray-100">fibonacci</span>(n):<br/>
-                      &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-gray-500 italic"># Time Complexity: O(n)</span><br/>
-                      &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-pink-400">if</span> n &lt;= <span className="text-purple-400">1</span>:<br/>
-                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-pink-400">return</span> n<br/>
+                      <span className="text-gray-500 italic"># Dynamic Programming - Student Submission</span><br />
+                      <span className="text-blue-400">def</span> <span className="text-gray-100">fibonacci</span>(n):<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-gray-500 italic"># Time Complexity: O(n)</span><br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-pink-400">if</span> n &lt;= <span className="text-purple-400">1</span>:<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-pink-400">return</span> n<br />
                     </div>
                   </div>
-                  
+
                   {/* Floating Action Button */}
                   <div className="absolute bottom-6 right-6 bg-white text-black px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg cursor-pointer hover:scale-105 transition-transform">
                     <CheckCircle size={16} /> SUBMIT & GRADE
@@ -404,8 +436,8 @@ export default function LandingPage() {
       ------------------------------------------------------------------------- */}
       <div className="w-full bg-gradient-to-b from-[#1a1a1a] to-[#e4e4e7] py-16 px-6">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
-          <p className="text-sm font-bold tracking-widest text-gray-400 uppercase mb-8">Trusted by Top Tech Companies & Universities</p>
-          <div className="flex flex-wrap justify-center gap-12 md:gap-24 opacity-60">
+          <p className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-8">Students from these companies trust SkillForge graduates</p>
+          <div className="flex flex-wrap justify-center gap-12 md:gap-24 opacity-50 hover:opacity-70 transition-opacity duration-500">
             {LOGOS.map((logo, i) => (
               <img key={i} src={logo} alt="Company Logo" className="h-8 md:h-10 object-contain grayscale invert hover:grayscale-0 hover:invert-0 transition-all duration-500" />
             ))}
@@ -418,14 +450,17 @@ export default function LandingPage() {
       ------------------------------------------------------------------------- */}
       <section id="features" className="py-32 px-6 bg-[#e4e4e7] text-black relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-20">
-            <h2 className="text-4xl md:text-6xl font-black tracking-tight mb-6">Built for the entire campus.</h2>
-            <p className="text-xl text-gray-600 max-w-2xl">
-              A comprehensive ecosystem that provides students with the tools to succeed and instructors with the analytics to guide them.
-            </p>
-          </div>
+          <motion.div variants={staggerWrap} initial="hidden" whileInView="show" viewport={{ once: true }} className="mb-20">
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-black/5 border border-black/10 text-gray-700 px-4 py-1.5 rounded-full text-sm font-bold mb-6">
+              ✦ Platform Capabilities
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-4xl md:text-6xl font-black tracking-tight mb-6">Built for the entire campus.</motion.h2>
+            <motion.p variants={fadeUp} className="text-xl text-gray-600 max-w-2xl">
+              Every role covered. Instructors build &amp; guide. Students learn, code, and earn. The institution tracks everything.
+            </motion.p>
+          </motion.div>
 
-          <motion.div 
+          <motion.div
             variants={staggerWrap} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-100px" }}
             className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[300px]"
           >
@@ -448,37 +483,37 @@ export default function LandingPage() {
 
             {/* Card 2: Auto Grading */}
             <motion.div variants={fadeUp} className="md:col-span-1 lg:col-span-2 row-span-1 rounded-[2rem] p-8 border border-white bg-white shadow-xl relative overflow-hidden group">
-               <div className="relative z-10 flex items-start gap-6 h-full flex-col justify-center">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="w-12 h-12 shrink-0 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200">
-                      <BarChart3 size={24} className="text-black" />
-                    </div>
-                    <h3 className="text-2xl font-black">Automated Grading</h3>
+              <div className="relative z-10 flex items-start gap-6 h-full flex-col justify-center">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200">
+                    <BarChart3 size={24} className="text-black" />
                   </div>
-                  <p className="text-gray-600 text-base">Instructors save hundreds of hours. Create assignments with hidden test cases and let our engine evaluate student submissions instantly.</p>
-               </div>
+                  <h3 className="text-2xl font-black">Automated Grading</h3>
+                </div>
+                <p className="text-gray-600 text-base">Instructors save hundreds of hours. Create assignments with hidden test cases and let our engine evaluate student submissions instantly.</p>
+              </div>
             </motion.div>
 
             {/* Card 3: Proctoring */}
             <motion.div variants={fadeUp} className="md:col-span-1 lg:col-span-1 row-span-1 rounded-[2rem] p-8 border border-white bg-white shadow-xl relative group">
-                <div className="absolute top-4 right-4 text-red-500 bg-red-50 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span> Live
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 mb-4 mt-4">
-                  <Shield size={24} className="text-black" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">AI Proctoring</h3>
-                <p className="text-gray-600 text-sm">Ensure academic integrity with client-side face detection and tab-lock technology.</p>
+              <div className="absolute top-4 right-4 text-red-500 bg-red-50 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span> Live
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 mb-4 mt-4">
+                <Shield size={24} className="text-black" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">AI Proctoring</h3>
+              <p className="text-gray-600 text-sm">Ensure academic integrity with client-side face detection and tab-lock technology.</p>
             </motion.div>
 
             {/* Card 4: Community */}
             <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-1 row-span-1 rounded-[2rem] p-8 border border-white bg-white shadow-xl relative group overflow-hidden">
-                <div className="absolute -right-10 -bottom-10 opacity-10"><Users size={150} /></div>
-                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 mb-4 relative z-10">
-                  <Presentation size={24} className="text-black" />
-                </div>
-                <h3 className="text-xl font-bold mb-2 relative z-10">Resource Library</h3>
-                <p className="text-gray-600 text-sm relative z-10">Centralized notes, high-quality videos, and interactive curriculum all in one place.</p>
+              <div className="absolute -right-10 -bottom-10 opacity-10"><Users size={150} /></div>
+              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 mb-4 relative z-10">
+                <Presentation size={24} className="text-black" />
+              </div>
+              <h3 className="text-xl font-bold mb-2 relative z-10">Resource Library</h3>
+              <p className="text-gray-600 text-sm relative z-10">Centralized notes, high-quality videos, and interactive curriculum all in one place.</p>
             </motion.div>
 
           </motion.div>
@@ -488,20 +523,55 @@ export default function LandingPage() {
       {/* ------------------------------------------------------------------------
           INSTRUCTOR VS STUDENT VIEWS (Gradient Transition)
       ------------------------------------------------------------------------- */}
+      {/* ── HOW THE RELATIONSHIP WORKS ── */}
+      <div className="bg-[#e4e4e7] pb-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div variants={staggerWrap} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center mb-12">
+            <motion.h3 variants={fadeUp} className="text-3xl md:text-4xl font-black tracking-tight mb-4 text-black">How Instructors &amp; Students Connect</motion.h3>
+            <motion.p variants={fadeUp} className="text-gray-600 text-lg max-w-xl mx-auto">SkillForge creates a seamless feedback loop between both roles.</motion.p>
+          </motion.div>
+          <motion.div variants={staggerWrap} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <motion.div variants={fadeUp} className="bg-white rounded-3xl p-7 border border-gray-200 shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center mb-4"><Presentation size={22} className="text-white" /></div>
+              <h4 className="text-lg font-black mb-2">Instructor Builds</h4>
+              <p className="text-gray-500 text-sm leading-relaxed">Creates video lessons, notes, quizzes, live coding assignments and hidden test cases — then publishes the course to enrolled students.</p>
+            </motion.div>
+            <motion.div variants={fadeUp} className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-1">
+                <ArrowRight size={28} className="text-gray-400 rotate-90 md:rotate-0" />
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest hidden md:block">Assigns &amp; Monitors</span>
+              </div>
+              <div className="w-16 h-16 rounded-full bg-black flex items-center justify-center shadow-2xl">
+                <Layers size={28} className="text-white" />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <ArrowRight size={28} className="text-gray-400 rotate-90 md:rotate-0" />
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest hidden md:block">Reports &amp; Certifies</span>
+              </div>
+            </motion.div>
+            <motion.div variants={fadeUp} className="bg-white rounded-3xl p-7 border border-gray-200 shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center mb-4"><GraduationCap size={22} className="text-white" /></div>
+              <h4 className="text-lg font-black mb-2">Student Learns</h4>
+              <p className="text-gray-500 text-sm leading-relaxed">Watches lessons, completes assignments in a zero-setup browser IDE, gets instant AI grading — and earns a verified certificate on 100% completion.</p>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
       <section id="platform" className="py-32 px-6 bg-gradient-to-b from-[#e4e4e7] via-[#f4f4f5] to-white text-black">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6">A Unified Experience for Every Role.</h2>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6">A Tailored View for Every Role.</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-              Tailored interfaces designed to give students focus, and instructors control.
+              Whether you teach or learn — SkillForge puts exactly the right tools in front of you.
             </p>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-12 items-center bg-white p-4 md:p-8 rounded-[2.5rem] shadow-2xl border border-gray-200">
-            
+
             {/* Controls Left */}
             <div className="w-full lg:w-1/3 flex flex-col gap-4">
-              <button 
+              <button
                 onClick={() => setActivePlatformTab("student")}
                 className={`p-6 rounded-3xl text-left transition-all border ${activePlatformTab === "student" ? "bg-black text-white shadow-xl scale-105" : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600"}`}
               >
@@ -512,7 +582,7 @@ export default function LandingPage() {
                 <p className={`text-sm ${activePlatformTab === "student" ? "text-gray-300" : "text-gray-500"}`}>A distraction-free IDE, progress tracking, and instant automated feedback on assignments.</p>
               </button>
 
-              <button 
+              <button
                 onClick={() => setActivePlatformTab("instructor")}
                 className={`p-6 rounded-3xl text-left transition-all border ${activePlatformTab === "instructor" ? "bg-black text-white shadow-xl scale-105" : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600"}`}
               >
@@ -526,77 +596,77 @@ export default function LandingPage() {
 
             {/* Visualizer Right */}
             <div className="w-full lg:w-2/3 h-[450px] bg-gray-100 rounded-3xl border border-gray-200 relative overflow-hidden flex items-center justify-center p-2">
-               <AnimatePresence mode="wait">
-                 {activePlatformTab === "student" ? (
-                   <motion.div 
-                      key="student"
-                      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.4 }}
-                      className="w-full h-full rounded-2xl overflow-hidden shadow-lg border border-gray-300 bg-white flex flex-col"
-                   >
-                      {/* Fake Student Dashboard Header */}
-                      <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 justify-between">
-                        <div className="flex items-center gap-4 text-sm font-bold"><Layers size={16}/> My Learning Path</div>
-                        <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">ST</div></div>
+              <AnimatePresence mode="wait">
+                {activePlatformTab === "student" ? (
+                  <motion.div
+                    key="student"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.4 }}
+                    className="w-full h-full rounded-2xl overflow-hidden shadow-lg border border-gray-300 bg-white flex flex-col"
+                  >
+                    {/* Fake Student Dashboard Header */}
+                    <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 justify-between">
+                      <div className="flex items-center gap-4 text-sm font-bold"><Layers size={16} /> My Learning Path</div>
+                      <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">ST</div></div>
+                    </div>
+                    {/* Fake Student Content */}
+                    <div className="flex-1 p-6 bg-gray-50 flex gap-6">
+                      <div className="w-2/3 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                        <h3 className="font-black text-xl mb-2">Data Structures 101</h3>
+                        <div className="w-full bg-gray-200 h-2 rounded-full mb-6"><div className="w-[60%] bg-black h-2 rounded-full"></div></div>
+                        <div className="h-32 bg-gray-100 rounded-lg flex items-center justify-center border border-dashed border-gray-300 text-gray-400 font-mono text-sm">Video Player Placeholder</div>
                       </div>
-                      {/* Fake Student Content */}
-                      <div className="flex-1 p-6 bg-gray-50 flex gap-6">
-                         <div className="w-2/3 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                            <h3 className="font-black text-xl mb-2">Data Structures 101</h3>
-                            <div className="w-full bg-gray-200 h-2 rounded-full mb-6"><div className="w-[60%] bg-black h-2 rounded-full"></div></div>
-                            <div className="h-32 bg-gray-100 rounded-lg flex items-center justify-center border border-dashed border-gray-300 text-gray-400 font-mono text-sm">Video Player Placeholder</div>
-                         </div>
-                         <div className="w-1/3 flex flex-col gap-4">
-                            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex-1">
-                              <h4 className="font-bold text-sm mb-4">Up Next</h4>
-                              <div className="space-y-3">
-                                <div className="h-8 bg-gray-100 rounded-md w-full"></div>
-                                <div className="h-8 bg-gray-100 rounded-md w-3/4"></div>
+                      <div className="w-1/3 flex flex-col gap-4">
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex-1">
+                          <h4 className="font-bold text-sm mb-4">Up Next</h4>
+                          <div className="space-y-3">
+                            <div className="h-8 bg-gray-100 rounded-md w-full"></div>
+                            <div className="h-8 bg-gray-100 rounded-md w-3/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="instructor"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.4 }}
+                    className="w-full h-full rounded-2xl overflow-hidden shadow-lg border border-gray-800 bg-[#0a0a0a] flex flex-col text-white"
+                  >
+                    {/* Fake Instructor Dashboard Header */}
+                    <div className="h-14 bg-[#111] border-b border-white/10 flex items-center px-6 justify-between">
+                      <div className="flex items-center gap-4 text-sm font-bold text-gray-300"><BarChart3 size={16} /> Instructor Analytics</div>
+                      <button className="bg-white text-black px-3 py-1 rounded text-xs font-bold">Create Course</button>
+                    </div>
+                    {/* Fake Instructor Content */}
+                    <div className="flex-1 p-6 flex gap-6">
+                      <div className="w-1/4 flex flex-col gap-4">
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex-1 flex flex-col items-center justify-center">
+                          <div className="text-3xl font-black">1,204</div>
+                          <div className="text-xs text-gray-500 uppercase mt-1">Active Students</div>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex-1 flex flex-col items-center justify-center">
+                          <div className="text-3xl font-black text-green-400">94%</div>
+                          <div className="text-xs text-gray-500 uppercase mt-1">Avg Pass Rate</div>
+                        </div>
+                      </div>
+                      <div className="w-3/4 bg-white/5 border border-white/10 rounded-xl p-6 relative overflow-hidden">
+                        <h4 className="font-bold text-sm mb-4 text-gray-300">Recent Submissions (Live)</h4>
+                        <div className="space-y-3">
+                          {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="flex justify-between items-center p-3 bg-black/50 rounded-lg border border-white/5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 rounded-full bg-gray-700"></div>
+                                <span className="text-sm font-medium">Student_ID_{849 + i}</span>
                               </div>
+                              <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">Auto-Graded: A+</span>
                             </div>
-                         </div>
+                          ))}
+                        </div>
                       </div>
-                   </motion.div>
-                 ) : (
-                  <motion.div 
-                      key="instructor"
-                      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.4 }}
-                      className="w-full h-full rounded-2xl overflow-hidden shadow-lg border border-gray-800 bg-[#0a0a0a] flex flex-col text-white"
-                   >
-                      {/* Fake Instructor Dashboard Header */}
-                      <div className="h-14 bg-[#111] border-b border-white/10 flex items-center px-6 justify-between">
-                        <div className="flex items-center gap-4 text-sm font-bold text-gray-300"><BarChart3 size={16}/> Instructor Analytics</div>
-                        <button className="bg-white text-black px-3 py-1 rounded text-xs font-bold">Create Course</button>
-                      </div>
-                      {/* Fake Instructor Content */}
-                      <div className="flex-1 p-6 flex gap-6">
-                         <div className="w-1/4 flex flex-col gap-4">
-                           <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex-1 flex flex-col items-center justify-center">
-                             <div className="text-3xl font-black">1,204</div>
-                             <div className="text-xs text-gray-500 uppercase mt-1">Active Students</div>
-                           </div>
-                           <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex-1 flex flex-col items-center justify-center">
-                             <div className="text-3xl font-black text-green-400">94%</div>
-                             <div className="text-xs text-gray-500 uppercase mt-1">Avg Pass Rate</div>
-                           </div>
-                         </div>
-                         <div className="w-3/4 bg-white/5 border border-white/10 rounded-xl p-6 relative overflow-hidden">
-                            <h4 className="font-bold text-sm mb-4 text-gray-300">Recent Submissions (Live)</h4>
-                            <div className="space-y-3">
-                              {[1,2,3,4].map(i => (
-                                <div key={i} className="flex justify-between items-center p-3 bg-black/50 rounded-lg border border-white/5">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-gray-700"></div>
-                                    <span className="text-sm font-medium">Student_ID_{849 + i}</span>
-                                  </div>
-                                  <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">Auto-Graded: A+</span>
-                                </div>
-                              ))}
-                            </div>
-                         </div>
-                      </div>
-                   </motion.div>
-                 )}
-               </AnimatePresence>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -610,16 +680,16 @@ export default function LandingPage() {
           <div className="text-center mb-16 pt-10">
             <h2 className="text-4xl md:text-6xl font-black tracking-tight mb-6 text-black">Infrastructure that scales.</h2>
             <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">From single classrooms to entire university campuses, our pricing adapts to your institutional needs.</p>
-            
+
             {/* Toggle */}
             <div className="inline-flex bg-white p-1 rounded-full border border-gray-300 shadow-sm">
-              <button 
+              <button
                 onClick={() => setBillingCycle("monthly")}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${billingCycle === "monthly" ? "bg-black text-white shadow-md" : "text-gray-500 hover:text-black"}`}
               >
                 Monthly
               </button>
-              <button 
+              <button
                 onClick={() => setBillingCycle("yearly")}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${billingCycle === "yearly" ? "bg-black text-white shadow-md" : "text-gray-500 hover:text-black"}`}
               >
@@ -630,7 +700,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center mt-10">
             {PRICING_PLANS.map((plan, i) => (
-              <motion.div 
+              <motion.div
                 key={plan.name}
                 variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} transition={{ delay: i * 0.1 }}
                 className={`p-10 rounded-[2.5rem] border ${plan.popular ? "bg-black border-gray-800 text-white scale-105 shadow-2xl relative z-20" : "bg-white border-gray-200 text-black hover:border-gray-300 shadow-xl"} transition-colors flex flex-col h-full`}
@@ -648,7 +718,7 @@ export default function LandingPage() {
                   </span>
                   {plan.priceMonthly !== "Free" && plan.priceMonthly !== "Custom" && <span className={plan.popular ? "text-gray-500 font-medium" : "text-gray-400 font-medium"}>/mo</span>}
                 </div>
-                
+
                 <ul className="space-y-5 mb-10 flex-1">
                   {plan.features.map((feat, idx) => (
                     <li key={idx} className="flex items-start gap-3 text-sm font-medium">
@@ -673,13 +743,13 @@ export default function LandingPage() {
       <section id="testimonials" className="py-32 px-6 bg-[#0a0a0a] border-t border-white/5 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-             <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-6">Trusted by Educators & Learners.</h2>
-             <p className="text-xl text-gray-500">Don't just take our word for it. See how SkillForge transforms education.</p>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-6">Trusted by Educators & Learners.</h2>
+            <p className="text-xl text-gray-500">Don't just take our word for it. See how SkillForge transforms education.</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {TESTIMONIALS.map((t, i) => (
-              <motion.div 
+              <motion.div
                 key={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} transition={{ delay: i * 0.1 }}
                 className="p-10 rounded-[2rem] bg-[#111] border border-white/5 hover:bg-white/5 transition-colors relative group"
               >
@@ -711,11 +781,11 @@ export default function LandingPage() {
           <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-16 text-center text-white">Frequently asked questions</h2>
           <div className="border-t border-white/10">
             {FAQS.map((faq, i) => (
-              <AccordionItem 
-                key={i} 
-                faq={faq} 
-                isOpen={openFaqIndex === i} 
-                onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)} 
+              <AccordionItem
+                key={i}
+                faq={faq}
+                isOpen={openFaqIndex === i}
+                onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
               />
             ))}
           </div>
@@ -726,14 +796,21 @@ export default function LandingPage() {
           BOTTOM CTA (Dark Mode)
       ------------------------------------------------------------------------- */}
       <section className="py-32 px-6 relative overflow-hidden bg-black border-t border-white/5">
-        <div className="absolute inset-0 bg-white/5 blur-[150px] rounded-full w-full max-w-4xl mx-auto pointer-events-none" />
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none" />
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="text-5xl mb-6"></div>
           <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-8 text-white">Ready to forge the future?</h2>
-          <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">Join forward-thinking universities and bootcamps upgrading their digital infrastructure today.</p>
-          <button onClick={() => navigate("/register")} className="bg-white text-black px-12 py-5 rounded-full font-black text-xl hover:bg-gray-200 transition-all active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 mx-auto">
-            Partner With Us <ArrowUpRight size={24} />
-          </button>
-        </div>
+          <p className="text-xl text-gray-400 mb-5 max-w-2xl mx-auto">Join forward-thinking universities and bootcamps upgrading their digital infrastructure today.</p>
+          <p className="text-sm text-gray-600 mb-12">No credit card required &middot; 7-day free trial &middot; Cancel anytime</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button onClick={() => navigate("/register")} className="bg-white text-black px-10 py-5 rounded-full font-black text-xl hover:bg-gray-200 transition-all active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3">
+              Get Started Free <ArrowUpRight size={24} />
+            </button>
+            <button onClick={() => navigate("/login")} className="border border-white/20 text-white px-10 py-5 rounded-full font-black text-xl hover:bg-white/5 transition-all flex items-center justify-center gap-3">
+              Sign In
+            </button>
+          </div>
+        </motion.div>
       </section>
 
       {/* ------------------------------------------------------------------------
