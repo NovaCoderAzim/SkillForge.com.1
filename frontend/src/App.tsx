@@ -16,6 +16,7 @@ import Dashboard from "./Dashboard";
 import InstructorSettings from "./InstructorSettings";
 import StudentManagement from "./StudentManagement";
 import CourseList from "./CourseList";
+import MeetingManager from "./MeetingManager";
 
 // CourseList is now imported from ./CourseList
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="create-course" element={<CreateCourse />} />
           <Route path="course/:courseId/builder" element={<CourseBuilder />} />
           <Route path="assignments" element={<AssignmentManager />} />
+          <Route path="meetings" element={<MeetingManager />} />
           <Route path="add-admits" element={<AddAdmits />} />
           <Route path="course/:courseId/preview" element={<CoursePreview />} />
           <Route path="code-arena" element={<CodeArena />} />

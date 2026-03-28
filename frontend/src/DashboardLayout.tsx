@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard, BookOpen, Users, Settings, LogOut,
-    Bell, ChevronDown, Zap, Code, Send, CheckCircle
+    Bell, ChevronDown, Zap, Code, Send, CheckCircle, Video
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,6 +46,7 @@ const DashboardLayout = () => {
     const navItems = [
         { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
         { name: "Courses", path: "/dashboard/courses", icon: BookOpen },
+        { name: "Meetings", path: "/dashboard/meetings", icon: Video },
         { name: "Students", path: "/dashboard/students", icon: Users },
         { name: "Code Arena", path: "/dashboard/code-arena", icon: Code },
     ];

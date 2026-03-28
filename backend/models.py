@@ -13,6 +13,9 @@ class User(Base):
     role = Column(String) 
     status = Column(String, default="Active")
     temp_password = Column(String, nullable=True)
+    zoom_account_id = Column(String, nullable=True)
+    zoom_client_id = Column(String, nullable=True)
+    zoom_client_secret = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     enrollments = relationship("Enrollment", back_populates="student")
@@ -131,3 +134,20 @@ class LessonProgress(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     content_item_id = Column(Integer, ForeignKey("content_items.id"))
     completed_at = Column(DateTime, default=datetime.utcnow)
+
+# ✅ NEW: ONLINE CLASS SCHEDULING MODELS
+class ScheduledClass(Base):
+    __tablename__ = "scheduled_classes"
+    id = Column(Integer, primary_key=True, index=True)
+    instructor_id = Column(Integer, ForeignKey("users.id"))
+    course_id = Column(Integer, ForeignKey("courses.id"))
+    title = Column(String)
+    agenda = Column(Text, nullable=True)
+    start_time = Column(DateTime)
+    duration_minutes = Column(Integer)
+    meeting_link = Column(String, nullable=True)
+    meeting_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    instructor = relationship("User", foreign_keys=[instructor_id])
+    course = relationship("Course")

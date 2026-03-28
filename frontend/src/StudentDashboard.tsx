@@ -10,14 +10,15 @@ import {
   Code, Play, Terminal, Monitor, AlertTriangle, Eye, EyeOff,
   ChevronRight, Menu, Zap, Cpu, Bell, Search, LayoutDashboard,
   CheckSquare, FileText, HelpCircle, Lightbulb, Trophy,
-  TrendingUp, Activity, Cloud, Layers, Unlock
+  TrendingUp, Activity, Cloud, Layers, Unlock, Video
 } from "lucide-react";
 import { GlassToast } from "./components/GlassToast";
+import StudentMeetings from "./StudentMeetings";
 
 import { runPythonLocally } from './utils/pyodideEnv';
 const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
 // --- TYPES ---
-interface Course { id: number; title: string; description: string; price: number; image_url: string; instructor_id: number; }
+interface Course { id: number; title: string; description: string; price: number; image_url: string; instructor_id: number; progress?: any; }
 interface CodeTest { id: number; title: string; time_limit: number; problems: any[]; completed?: boolean; result_status?: string; }
 
 const StudentDashboard = () => {
@@ -608,6 +609,7 @@ const StudentDashboard = () => {
           <NavItem icon={<LayoutDashboard size={16} />} label="Home" active={activeTab === "home"} onClick={() => setActiveTab("home")} />
           <NavItem icon={<BookOpen size={16} />} label="My Courses" active={activeTab === "learning"} onClick={() => setActiveTab("learning")} />
           <NavItem icon={<Code size={16} />} label="Code Arena" active={activeTab === "test"} onClick={() => setActiveTab("test")} />
+          <NavItem icon={<Video size={16} />} label="Live Classes" active={activeTab === "meetings"} onClick={() => setActiveTab("meetings")} />
           <NavItem icon={<Award size={16} />} label="Certificates" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
           <NavItem icon={<Compass size={16} />} label="Explore" active={activeTab === "explore"} onClick={() => setActiveTab("explore")} />
         </nav>
@@ -1116,6 +1118,11 @@ const StudentDashboard = () => {
               </form>
             </div>
           </motion.div>
+        )}
+
+        {/* TAB: MEETINGS / CALENDAR */}
+        {activeTab === "meetings" && (
+            <StudentMeetings />
         )}
 
       </main>
