@@ -56,6 +56,7 @@ const StudentDashboard = () => {
   const [activeTest, setActiveTest] = useState<CodeTest | null>(null);
   const [passKeyInput, setPassKeyInput] = useState("");
   const [showPassKeyModal, setShowPassKeyModal] = useState<number | null>(null);
+  const [certSearchQuery, setCertSearchQuery] = useState("");
 
   // --- PROCTORING & IDE STATES ---
   const [timeLeft, setTimeLeft] = useState(0);
@@ -1039,70 +1040,106 @@ const StudentDashboard = () => {
                 <p className="text-lg font-bold text-gray-500">You haven't enrolled in any courses yet.</p>
               </div>
             ) : (
-              <div className="space-y-12">
-                {/* COMPLETED SECTION */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-2 mb-4">Completed ({enrolledCourses.filter(c => c.progress === 100).length})</h3>
-                  {enrolledCourses.filter(c => c.progress === 100).length === 0 ? (
-                    <p className="text-sm font-bold text-gray-400 py-4 px-2">No completed courses yet. Keep learning!</p>
-                  ) : (
-                    enrolledCourses.filter(c => c.progress === 100).map((course: any) => (
-                      <div key={course.id} className="bg-white border border-gray-100 rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                        <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0">
-                            {course.image_url ? <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" /> : <BookOpen size={24} className="m-auto mt-4 text-gray-300" />}
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight">{course.title}</h3>
-                            <div className="flex items-center gap-4 mt-2.5">
-                              <div className="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-green-500" style={{ width: `100%` }}></div>
-                              </div>
-                              <span className="text-xs font-black text-green-600">100% Complete</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleDownloadCertificate(course.id, course.title)}
-                          className="px-6 py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all min-w-[200px] bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                        >
-                          <Unlock size={18} /> Claim Certificate
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* IN PROGRESS SECTION */}
-                <div className="space-y-4">
+              <div className="space-y-16">
+                
+                {/* IN PROGRESS SECTION (TOP) */}
+                <div className="space-y-6">
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-2 mb-4">In Progress ({enrolledCourses.filter(c => c.progress < 100).length})</h3>
                   {enrolledCourses.filter(c => c.progress < 100).length === 0 ? (
                     <p className="text-sm font-bold text-gray-400 py-4 px-2">No courses currently in progress.</p>
                   ) : (
-                    enrolledCourses.filter(c => c.progress < 100).map((course: any) => (
-                      <div key={course.id} className="bg-white/60 border border-gray-100 rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6 opacity-90 hover:opacity-100">
-                        <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0 grayscale-[50%]">
-                            {course.image_url ? <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" /> : <BookOpen size={24} className="m-auto mt-4 text-gray-300" />}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {enrolledCourses.filter(c => c.progress < 100).map((course: any) => (
+                        <div key={course.id} className="bg-white/70 border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:shadow-xl transition-all group flex flex-col h-full relative overflow-hidden">
+                          <div className="h-32 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 mb-4 relative shrink-0">
+                            {course.image_url ? (
+                                <img src={course.image_url} alt={course.title} className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-200"><BookOpen size={32} /></div>
+                            )}
+                            <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
                           </div>
-                          <div>
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight">{course.title}</h3>
-                            <div className="flex items-center gap-4 mt-2.5">
-                              <div className="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-[#ff4a4a]" style={{ width: `${course.progress || 0}%` }}></div>
-                              </div>
-                              <span className="text-xs font-black text-gray-500">{course.progress || 0}% Complete</span>
+                          
+                          <div className="flex-1 flex flex-col">
+                            <h3 className="text-md font-black text-gray-900 tracking-tight mb-3 line-clamp-2 leading-tight h-10">{course.title}</h3>
+                            <div className="space-y-2 mb-6">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-gray-400">Progress</span>
+                                    <span className="text-red-500">{course.progress || 0}%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <motion.div initial={{ width: 0 }} animate={{ width: `${course.progress || 0}%` }} className="h-full bg-red-500 rounded-full" />
+                                </div>
                             </div>
+                            
+                            <button disabled className="mt-auto w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed">
+                              <Lock size={14} /> Locked
+                            </button>
                           </div>
                         </div>
-                        <button
-                          disabled
-                          className="px-6 py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all min-w-[200px] bg-red-50 text-red-500 border border-red-100 cursor-not-allowed"
-                        >
-                          <Lock size={18} /> Locked
-                        </button>
-                      </div>
-                    ))
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* COMPLETED SECTION (BOTTOM) */}
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 mb-4">
+                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">Completed ({enrolledCourses.filter(c => c.progress === 100).length})</h3>
+                    
+                    {/* SEARCH BAR */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                        <input 
+                            type="text" 
+                            placeholder="Search certificates..." 
+                            value={certSearchQuery}
+                            onChange={(e) => setCertSearchQuery(e.target.value)}
+                            className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                        />
+                    </div>
+                  </div>
+
+                  {enrolledCourses.filter(c => c.progress === 100).length === 0 ? (
+                    <p className="text-sm font-bold text-gray-400 py-4 px-2">No completed courses yet. Keep learning!</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {enrolledCourses
+                        .filter(c => c.progress === 100)
+                        .filter(c => c.title.toLowerCase().includes(certSearchQuery.toLowerCase()))
+                        .map((course: any) => (
+                        <div key={course.id} className="bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all group flex flex-col h-full relative overflow-hidden">
+                          <div className="h-32 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 mb-4 relative shrink-0">
+                            {course.image_url ? (
+                                <img src={course.image_url} alt={course.title} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-200"><BookOpen size={32} /></div>
+                            )}
+                            <div className="absolute inset-0 bg-green-500/5" />
+                          </div>
+
+                          <div className="flex-1 flex flex-col">
+                            <h3 className="text-md font-black text-gray-900 tracking-tight mb-3 line-clamp-2 leading-tight h-10">{course.title}</h3>
+                            <div className="space-y-2 mb-6">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-gray-400">Status</span>
+                                    <span className="text-green-600">100%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-green-50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-500 rounded-full" style={{ width: `100%` }} />
+                                </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleDownloadCertificate(course.id, course.title)}
+                              className="mt-auto w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all bg-green-500 text-white hover:bg-green-600 shadow-lg shadow-green-500/20 active:scale-95"
+                            >
+                              <Unlock size={14} /> Claim Certificate
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
