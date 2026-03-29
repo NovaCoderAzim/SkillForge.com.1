@@ -151,3 +151,15 @@ class ScheduledClass(Base):
     
     instructor = relationship("User", foreign_keys=[instructor_id])
     course = relationship("Course")
+
+class CourseReview(Base):
+    __tablename__ = "course_reviews"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    course_id = Column(Integer, ForeignKey("courses.id"))
+    rating = Column(Integer)
+    feedback = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    student = relationship("User")
+    course = relationship("Course")

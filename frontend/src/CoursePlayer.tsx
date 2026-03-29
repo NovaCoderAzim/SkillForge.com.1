@@ -10,7 +10,7 @@ import { GlassToast } from "./components/GlassToast";
 import {
   PlayCircle, FileText, ChevronLeft, Menu, Code, HelpCircle,
   UploadCloud, CheckCircle, ChevronDown, ChevronRight, Lock,
-  Unlock, Award, Play, Save, Monitor, Cpu, ExternalLink, AlertCircle
+  Unlock, Award, Play, Save, Monitor, Cpu, ExternalLink
 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
@@ -122,6 +122,40 @@ const CodeCompiler = ({ lesson }: { lesson: any }) => {
   );
 };
 
+// --- 🔄 COMPONENT: WINDOWS CYCLE LOADER ---
+const WindowsLoader = () => {
+    return (
+        <div className="flex flex-col items-center justify-center gap-6">
+            <div className="relative w-12 h-12">
+                {[...Array(6)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        className="absolute w-2 h-2 bg-blue-600 rounded-full"
+                        initial={{ rotate: 0, opacity: 0 }}
+                        animate={{ 
+                            rotate: 360,
+                            opacity: [0, 1, 1, 0],
+                        }}
+                        transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                            delay: i * 0.15,
+                        }}
+                        style={{
+                            originX: "24px",
+                            originY: "24px",
+                            left: "calc(50% - 4px)",
+                            top: "0"
+                        }}
+                    />
+                ))}
+            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse font-sans">Initializing Content...</p>
+        </div>
+    );
+};
+
 // --- MAIN PLAYER COMPONENT ---
 const CoursePlayer = () => {
   const { courseId } = useParams();
@@ -132,6 +166,7 @@ const CoursePlayer = () => {
   const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const [isMarking, setIsMarking] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
 
   const [toast, setToast] = useState({ show: false, msg: "", type: "success" });
   const [showPendingCertModal, setShowPendingCertModal] = useState(false);
@@ -168,6 +203,17 @@ const CoursePlayer = () => {
     };
     fetchCourse();
   }, [courseId]);
+
+  useEffect(() => {
+    if (activeLesson) {
+        setContentLoading(true);
+        // Auto-resolve non-iframe content load for smooth transition
+        if (activeLesson.type !== 'note' && activeLesson.type !== 'quiz') {
+            const timer = setTimeout(() => setContentLoading(false), 1200);
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [activeLesson]);
 
   const toggleModule = (moduleId: number) => setExpandedModules(prev => prev.includes(moduleId) ? prev.filter(id => id !== moduleId) : [...prev, moduleId]);
 
@@ -215,19 +261,41 @@ const CoursePlayer = () => {
     const isDone = completedLessons.includes(activeLesson.id);
 
     return (
-      <div className="flex flex-col h-full bg-transparent">
+      <div className="flex flex-col h-full bg-transparent w-full relative">
+        {/* WINDOWS LOADER OVERLAY */}
+        <AnimatePresence>
+            {contentLoading && (
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-[100] bg-[#f8fafc]/90 backdrop-blur-xl flex items-center justify-center p-8 rounded-[3rem]"
+                >
+                    <WindowsLoader />
+                </motion.div>
+            )}
+        </AnimatePresence>
+
         {/* CENTER STAGE: Content Area */}
         <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center w-full p-8 md:p-12">
 
           {activeLesson.type === "note" && (
             <div className="w-full h-full max-w-6xl rounded-[2rem] overflow-hidden shadow-xl border border-slate-200/60 bg-white/50 backdrop-blur-xl mx-auto p-2">
-              <iframe src={getEmbedUrl(activeLesson.url)} className="w-full h-full rounded-[1.5rem] border-0 bg-white" />
+              <iframe 
+                src={getEmbedUrl(activeLesson.url)} 
+                className="w-full h-full rounded-[1.5rem] border-0 bg-white" 
+                onLoad={() => setContentLoading(false)}
+              />
             </div>
           )}
 
           {activeLesson.type === "quiz" && (
             <div className="w-full h-full max-w-6xl rounded-[2rem] overflow-hidden shadow-xl border border-slate-200/60 bg-white/50 backdrop-blur-xl mx-auto p-2">
-              <iframe src={getEmbedUrl(activeLesson.url)} className="w-full h-full rounded-[1.5rem] border-0 bg-white" />
+              <iframe 
+                src={getEmbedUrl(activeLesson.url)} 
+                className="w-full h-full rounded-[1.5rem] border-0 bg-white" 
+                onLoad={() => setContentLoading(false)}
+              />
             </div>
           )}
 
@@ -311,9 +379,8 @@ const CoursePlayer = () => {
         {sidebarOpen && (
           <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 380, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex flex-col h-full bg-white/80 backdrop-blur-3xl border-r border-slate-200/60 z-30 shrink-0 relative shadow-2xl">
 
-            {/* Sidebar Header */}
             <div className="pt-8 pb-4 px-8 shrink-0">
-              <button onClick={() => navigate("/student-dashboard")} className="flex items-center justify-center gap-3 text-slate-500 hover:text-slate-900 transition-colors font-bold text-sm bg-white border border-slate-200 px-5 py-3 rounded-2xl w-fit shadow-sm hover:bg-slate-50">
+              <button onClick={() => navigate("/student-dashboard", { state: { activeTab: "learning" } })} className="flex items-center justify-center gap-3 text-slate-500 hover:text-slate-900 transition-colors font-bold text-sm bg-white border border-slate-200 px-5 py-3 rounded-2xl w-fit shadow-sm hover:bg-slate-50">
                 <ChevronLeft size={18} /> Exit Player
               </button>
             </div>

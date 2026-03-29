@@ -70,9 +70,9 @@ const DashboardLayout = () => {
         <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-black selection:text-white relative pb-20">
 
             {/* 🎨 THEME: Abstract Black/White/Gray Gradient Mesh */}
-            <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-white rounded-full blur-[120px] pointer-events-none opacity-90 z-0" />
-            <div className="fixed bottom-[-10%] right-[-5%] w-[60%] h-[60%] bg-slate-200/50 rounded-full blur-[150px] pointer-events-none z-0" />
-            <div className="fixed top-[20%] right-[20%] w-[30%] h-[30%] bg-gray-300/30 rounded-full blur-[100px] pointer-events-none z-0" />
+            <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-white rounded-full blur-[120px] pointer-events-none opacity-90 z-[-1]" />
+            <div className="fixed bottom-[-10%] right-[-5%] w-[60%] h-[60%] bg-slate-200/50 rounded-full blur-[150px] pointer-events-none z-[-1]" />
+            <div className="fixed top-[20%] right-[20%] w-[30%] h-[30%] bg-gray-300/30 rounded-full blur-[100px] pointer-events-none z-[-1]" />
 
             {/* 🚀 TOP NAVIGATION BAR */}
             <nav className="sticky top-0 z-50 px-4 md:px-8 py-4">

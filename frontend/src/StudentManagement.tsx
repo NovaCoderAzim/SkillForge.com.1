@@ -172,7 +172,7 @@ const StudentManagement = () => {
       {/* SIDEBAR NAVIGATION */}
       <div className="w-full md:w-64 shrink-0">
         <div className="mb-10">
-          <h1 className="text-4xl font-black text-black tracking-tight">CRM</h1>
+          <h1 className="text-5xl font-black bg-gradient-to-br from-slate-900 via-slate-600 to-slate-900 bg-clip-text text-transparent tracking-tight inline-block pb-1">CRM</h1>
           <p className="text-gray-700 font-bold mt-1 text-sm">Manage absolute student access.</p>
         </div>
 
@@ -201,7 +201,7 @@ const StudentManagement = () => {
             {/* DIRECTORY TAB */}
             {activeTab === "Directory" && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[75vh]">
+                <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col min-h-[75vh]">
                   {/* Search Header */}
                   <div className="p-6 border-b-2 border-gray-100 bg-white sticky top-0 z-10">
                     <div className="relative max-w-md">
@@ -351,8 +351,8 @@ const StudentManagement = () => {
 
             {/* SINGLE ONBOARDING TAB */}
             {activeTab === "Single Onboarding" && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl bg-white rounded-2xl border-2 border-gray-200 shadow-md p-10">
-                <h3 className="text-3xl font-black text-black mb-3 tracking-tight">Manual Provisioning</h3>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-10">
+                <h3 className="text-3xl font-black bg-gradient-to-br from-slate-900 via-slate-600 to-slate-900 bg-clip-text text-transparent mb-3 tracking-tight inline-block pb-1">Manual Provisioning</h3>
                 <p className="text-gray-600 mb-10 text-sm font-bold">Bypass normal registration to forcefully push a student profile into the system.</p>
 
                 <form onSubmit={handleAddStudent} className="space-y-8">
@@ -391,8 +391,8 @@ const StudentManagement = () => {
 
             {/* BULK IMPORT TAB */}
             {activeTab === "Bulk Import" && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl bg-white rounded-2xl border-2 border-gray-200 shadow-md p-10">
-                <h3 className="text-3xl font-black text-black mb-3 tracking-tight">Bulk Import Generator</h3>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-10">
+                <h3 className="text-3xl font-black bg-gradient-to-br from-slate-900 via-slate-600 to-slate-900 bg-clip-text text-transparent mb-3 tracking-tight inline-block pb-1">Bulk Import Generator</h3>
                 <p className="text-gray-600 mb-8 text-sm font-bold">Paste CSV formatted data. Structure MUST follow: <span className="text-black font-mono font-black bg-gray-100 px-2 py-1 rounded">Name, Email, Password(optional)</span></p>
 
                 <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-4 shadow-inner mb-6">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,7 +9,7 @@ import {
   CreditCard, X, Lock, Save, CheckCircle,
   Code, Play, Terminal, Monitor, AlertTriangle, Eye, EyeOff,
   ChevronRight, Menu, Zap, Cpu, Bell, Search, LayoutDashboard,
-  CheckSquare, FileText, HelpCircle, Lightbulb, Trophy,
+  CheckSquare, FileText, HelpCircle, Lightbulb, Trophy, Star,
   TrendingUp, Activity, Cloud, Layers, Unlock, Video
 } from "lucide-react";
 import { GlassToast } from "./components/GlassToast";
@@ -18,12 +18,13 @@ import StudentMeetings from "./StudentMeetings";
 import { runPythonLocally } from './utils/pyodideEnv';
 const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
 // --- TYPES ---
-interface Course { id: number; title: string; description: string; price: number; image_url: string; instructor_id: number; progress?: any; }
+interface Course { id: number; title: string; description: string; price: number; image_url: string; instructor_id: number; progress?: any; user_rating?: number; }
 interface CodeTest { id: number; title: string; time_limit: number; problems: any[]; completed?: boolean; result_status?: string; }
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("home");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "home");
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,12 @@ const StudentDashboard = () => {
   const [newPassword, setNewPassword] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  // --- REVIEW SYSTEM STATES ---
+  const [showReviewModal, setShowReviewModal] = useState<Course | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // --- CODE ARENA STATES ---
   const [codeTests, setCodeTests] = useState<CodeTest[]>([]);
@@ -425,6 +432,31 @@ const StudentDashboard = () => {
   const handlePayment = async (courseId: number, price: number) => { /* Razorpay Logic */ triggerToast("Payment Portal Triggered", "success"); };
   const handleTrialParams = async () => { if (!selectedCourse) return; setProcessing(true); try { const token = localStorage.getItem("token"); await axios.post(`${API_BASE_URL}/enroll/${selectedCourse.id}`, { type: "trial" }, { headers: { Authorization: `Bearer ${token}` } }); triggerToast("Trial Activated!"); setShowModal(false); setActiveTab("learning"); fetchData(); } catch (e) { triggerToast("Error", "error"); } finally { setProcessing(false); } };
   const handleLogout = () => { localStorage.clear(); navigate("/"); };
+
+  const handleSubmitReview = async () => {
+    if (!showReviewModal) return;
+    if (reviewRating === 0) {
+      triggerToast("Please select a rating", "error");
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_BASE_URL}/courses/${showReviewModal.id}/reviews`, {
+        rating: reviewRating,
+        feedback: reviewFeedback
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      triggerToast("Thank you for your feedback!", "success");
+      setShowReviewModal(null);
+      setReviewRating(0);
+      setReviewFeedback("");
+      fetchData();
+    } catch (e) {
+      triggerToast("Failed to submit review", "error");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // ============================================================================
   // 🎨 UI COMPONENTS (SkillForge Theme)
@@ -866,10 +898,10 @@ const StudentDashboard = () => {
                   )}
                 </div>
 
-                {/* COMPLETED COURSES */}
+                {/* COMPLETED COURSES SECTION OVERHAUL */}
                 <div className="space-y-6">
                   <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                    <div className="w-2 h-6 bg-emerald-500 rounded-full"></div> Completed ({enrolledCourses.filter(c => c.progress === 100).length})
+                    <div className="w-2 h-6 bg-blue-600 rounded-full"></div> Completed ({enrolledCourses.filter(c => c.progress === 100).length})
                   </h3>
 
                   {enrolledCourses.filter(c => c.progress === 100).length === 0 ? (
@@ -877,24 +909,24 @@ const StudentDashboard = () => {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {enrolledCourses.filter(c => c.progress === 100).map((c: any) => (
-                        <div key={c.id} className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] p-6 shadow-lg hover:shadow-xl transition-all group flex flex-col h-full relative overflow-hidden ring-1 ring-emerald-100">
+                        <div key={c.id} className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-[2rem] p-6 shadow-lg hover:shadow-2xl transition-all group flex flex-col h-full relative overflow-hidden">
 
                           {/* RIBBON */}
-                          <div className="absolute top-5 -right-8 bg-emerald-500 text-white text-[10px] font-black py-1 px-10 rotate-45 uppercase tracking-widest shadow-md z-20">
+                          <div className="absolute top-5 -right-8 bg-gray-200 text-gray-700 text-[10px] font-black py-1 px-10 rotate-45 uppercase tracking-widest shadow-md z-20 border border-gray-300">
                             Completed
                           </div>
 
-                          <div className="h-40 bg-emerald-50/50 rounded-xl mb-6 overflow-hidden relative border border-emerald-100">
-                            {c.image_url ? <img src={c.image_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center text-emerald-200"><Award size={40} /></div>}
+                          <div className="h-40 bg-gray-100 rounded-xl mb-6 overflow-hidden relative border border-gray-200">
+                            {c.image_url ? <img src={c.image_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><Award size={40} /></div>}
 
                             {/* PAYMENT INDICATOR */}
                             <div className="absolute bottom-3 right-3 flex flex-col gap-2">
                               {c.enrollment_type === 'trial' ? (
-                                <span className="bg-orange-500/90 backdrop-blur-md text-white border border-orange-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                <span className="bg-red-500/90 backdrop-blur-md text-white border border-red-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
                                   <Clock size={12} /> {c.days_left ?? 0} Days Trial
                                 </span>
                               ) : (
-                                <span className="bg-emerald-500/90 backdrop-blur-md text-white border border-emerald-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                <span className="bg-blue-600/90 backdrop-blur-md text-white border border-blue-500 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
                                   <CheckCircle size={12} /> Paid
                                 </span>
                               )}
@@ -903,30 +935,44 @@ const StudentDashboard = () => {
                             {/* FINALIZED INDICATOR */}
                             <div className="absolute bottom-3 left-3">
                               {c.is_finalized ? (
-                                <span className="bg-black/80 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest border border-white/20">Finalized</span>
+                                <span className="bg-white/90 backdrop-blur-md text-blue-600 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest border border-gray-200 shadow-sm">Finalized</span>
                               ) : (
-                                <span className="bg-white/80 backdrop-blur-md text-gray-600 border border-gray-300 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">Draft</span>
+                                <span className="bg-gray-100/90 backdrop-blur-md text-gray-500 border border-gray-200 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">Draft</span>
                               )}
                             </div>
                           </div>
 
                           <h3 className="text-xl font-black mb-1 leading-tight text-gray-900 tracking-tight pr-8">{c.title}</h3>
                           <div className="mb-4 flex items-center gap-3">
-                            <div className="flex-1 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `100%` }}></div>
+                            <div className="flex-1 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-green-700" style={{ width: `100%` }}></div>
                             </div>
-                            <span className="text-[10px] font-black text-emerald-600">100%</span>
+                            <span className="text-[10px] font-black text-green-700">100% Complete</span>
                           </div>
 
                           <p className="text-sm text-gray-500 font-medium mb-6 line-clamp-2 flex-1">{c.description || "Course description goes here."}</p>
 
-                          <div className="flex gap-2">
-                            <button onClick={() => navigate(`/course/${c.id}/player`)} className="flex-1 bg-white border border-gray-200 text-black font-bold py-3.5 rounded-xl flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm text-sm tracking-tight">
-                              Review
-                            </button>
-                            <button onClick={() => { setActiveTab("certificates"); }} className="flex-[1.5] bg-emerald-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow-md text-sm tracking-tight">
-                              <Award size={16} /> Claim
-                            </button>
+                          <div className="flex flex-col gap-3">
+                            {/* Stars Section */}
+                            <div className="flex items-center justify-between bg-gray-50 border border-gray-200 p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex gap-1" title={c.user_rating ? "Your rating" : "Not rated yet"}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star key={star} size={16} className={star <= (c.user_rating || 0) ? "fill-yellow-500 text-yellow-500" : "text-gray-300"} />
+                                ))}
+                              </div>
+                              <button onClick={() => setShowReviewModal(c)} className="text-[10px] font-black bg-white border border-blue-100 text-blue-600 px-4 py-1.5 rounded-lg shadow-sm hover:bg-blue-50 transition-colors uppercase tracking-widest active:scale-95">
+                                Rate
+                              </button>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button onClick={() => navigate(`/course/${c.id}/player`)} className="flex-1 bg-white border border-gray-200 text-gray-700 font-black py-3.5 rounded-xl flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm text-sm tracking-tight active:scale-95">
+                                Review
+                              </button>
+                              <button onClick={() => { setActiveTab("certificates"); }} className="flex-[1.5] bg-gray-200 text-gray-700 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-300 transition-colors shadow-md text-sm tracking-tight active:scale-95 shadow-gray-200/20">
+                                <Award size={16} /> Claim Certificate
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1175,6 +1221,41 @@ const StudentDashboard = () => {
 
               <button onClick={() => handlePayment(selectedCourse.id, selectedCourse.price)} className="w-full py-4 rounded-xl border-2 border-black font-black text-black flex items-center justify-center gap-2 hover:bg-black hover:text-white transition-all">
                 <CreditCard size={20} /> Buy Lifetime Access (₹{selectedCourse.price})
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Review Modal */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl border border-gray-100 relative">
+              <button onClick={() => { setShowReviewModal(null); setReviewRating(0); setReviewFeedback(""); }} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><X size={20} className="text-gray-600" /></button>
+              
+              <div className="w-16 h-16 bg-yellow-50 rounded-2xl border border-yellow-100 flex items-center justify-center mb-6 shadow-sm">
+                <Star size={32} className="text-yellow-500 fill-yellow-500" />
+              </div>
+
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-tight pr-8 mb-2">Rate {showReviewModal.title}</h3>
+              <p className="text-sm font-medium text-gray-500 mb-8 leading-relaxed">Your feedback helps instructors improve and helps other students make decisions.</p>
+
+              <div className="flex justify-center gap-3 mb-8 bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-inner">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setReviewRating(star)} className="group relative outline-none focus:outline-none">
+                    <Star size={44} className={`transition-all duration-300 ${star <= reviewRating ? "text-yellow-400 fill-yellow-400 scale-110 drop-shadow-md" : "text-gray-300 hover:text-yellow-300"}`} />
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-8">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Feedback (Optional)</label>
+                <textarea value={reviewFeedback} onChange={(e) => setReviewFeedback(e.target.value)} placeholder="What did you like or dislike? Write your review here..." rows={4} className="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all resize-none shadow-sm"></textarea>
+              </div>
+
+              <button onClick={handleSubmitReview} disabled={submittingReview} className="w-full py-4 bg-black text-white font-black rounded-xl hover:bg-gray-800 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center gap-2 uppercase tracking-widest text-sm active:scale-95">
+                {submittingReview ? "Submitting..." : "Submit Feedback"}
               </button>
             </motion.div>
           </motion.div>

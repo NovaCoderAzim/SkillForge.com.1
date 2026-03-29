@@ -183,6 +183,10 @@ class ScheduledClassCreate(BaseModel):
     start_time: str
     duration_minutes: int
 
+class ReviewCreate(BaseModel):
+    rating: int
+    feedback: str
+
 # --- 🔑 AUTH LOGIC ---
 def verify_password(plain_password, hashed_password):
     if isinstance(hashed_password, str):
@@ -847,6 +851,12 @@ def get_my_courses(db: Session = Depends(get_db), current_user: models.User = De
         if getattr(e, "expiry_date", None):
             days_left = (e.expiry_date - datetime.utcnow()).days
             
+        # Get user's rating for this course if it exists
+        user_review = db.query(models.CourseReview).filter(
+            models.CourseReview.user_id == current_user.id,
+            models.CourseReview.course_id == course.id
+        ).first()
+            
         response.append({
             "id": course.id,
             "title": course.title,
@@ -856,7 +866,8 @@ def get_my_courses(db: Session = Depends(get_db), current_user: models.User = De
             "is_finalized": getattr(course, "is_finalized", False),
             "progress": progress,
             "enrollment_type": getattr(e, "enrollment_type", "paid"),
-            "days_left": days_left
+            "days_left": days_left,
+            "user_rating": user_review.rating if user_review else None
         })
         
     return response
@@ -1274,6 +1285,68 @@ def delete_meeting(meeting_id: int, db: Session = Depends(get_db), current_user:
 
 
 
+
+@app.post("/api/v1/courses/{course_id}/reviews")
+def create_course_review(course_id: int, review: ReviewCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    # Check if a review already exists
+    existing_review = db.query(models.CourseReview).filter(
+        models.CourseReview.user_id == current_user.id, 
+        models.CourseReview.course_id == course_id
+    ).first()
+    
+    if existing_review:
+        existing_review.rating = review.rating
+        existing_review.feedback = review.feedback
+        db.commit()
+        return {"message": "Review updated successfully"}
+        
+    new_review = models.CourseReview(
+        user_id=current_user.id,
+        course_id=course_id,
+        rating=review.rating,
+        feedback=review.feedback
+    )
+    db.add(new_review)
+    db.commit()
+    return {"message": "Review submitted successfully"}
+
+@app.get("/api/v1/instructor/reviews")
+def get_instructor_reviews(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "instructor":
+        raise HTTPException(status_code=403, detail="Instructor only")
+        
+    # Get all courses by this instructor
+    course_ids = [c.id for c in db.query(models.Course.id).filter(models.Course.instructor_id == current_user.id).all()]
+    
+    if not course_ids:
+        return []
+        
+    reviews = db.query(models.CourseReview).filter(models.CourseReview.course_id.in_(course_ids)).all()
+    
+    out = []
+    for r in reviews:
+        # Time formatting: like "2h ago" or "1d ago" etc.
+        diff = datetime.utcnow() - r.created_at
+        if diff.days > 0:
+            time_str = f"{diff.days}d ago"
+        elif diff.seconds >= 3600:
+            time_str = f"{diff.seconds // 3600}h ago"
+        else:
+            time_str = f"{diff.seconds // 60}m ago"
+            
+        out.append({
+            "id": r.id,
+            "student": r.student.full_name,
+            "course": r.course.title,
+            "course_id": r.course_id,
+            "rating": r.rating,
+            "text": r.feedback,
+            "time": time_str
+        })
+        
+    # Sort newest first
+    out.sort(key=lambda x: x["id"], reverse=True)
+    return out
 
 @app.get("/")
 def read_root(): return {"status": "online", "message": "iQmath API Active 🟢"}

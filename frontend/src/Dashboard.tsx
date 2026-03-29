@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -65,11 +66,23 @@ const Dashboard = () => {
     }
   ];
 
-  const feedbacks = [
-    { id: 1, student: 'Rahul S.', course: 'Advanced Python', rating: 5, text: "Incredible course. The section on metaclasses finally made sense to me.", time: '2h ago' },
-    { id: 2, student: 'Priya P.', course: 'React JS Apps', rating: 4, text: "Great content, but the pace in module 4 was a bit fast.", time: '5h ago' },
-    { id: 3, student: 'Amit K.', course: 'Java SpringBoot', rating: 5, text: "Best instructor on the platform. Clear, concise, and enterprise-focused.", time: '1d ago' },
-  ];
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+        const res = await axios.get(`${API_BASE_URL}/instructor/reviews`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFeedbacks(res.data);
+      } catch (err) {
+        console.error("Failed to load reviews:", err);
+      }
+    };
+    fetchReviews();
+  }, []);
 
   // --- ACTIONS ---
   const handleGenerateMeeting = (e: React.FormEvent) => {
@@ -92,7 +105,7 @@ const Dashboard = () => {
         {/* HEADER & QUICK ACTIONS */}
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
             <div>
-                <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight mb-2">Platform Overview</h1>
+                <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-br from-slate-900 via-slate-600 to-slate-900 bg-clip-text text-transparent tracking-tight mb-2 inline-block pb-1">Platform Overview</h1>
                 <p className="text-slate-500 font-bold text-sm">Analyze performance, manage cohorts, and schedule live sessions.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  ArrowLeft, Video, HelpCircle, FileText,
+  ArrowLeft, Video, HelpCircle, FileText, Star,
   Trash2, Edit3, Layout, ChevronDown, Plus, Code, Radio, Zap,
   X, Clock, Lock, BarChart, GripVertical, Save, Users, Award, TrendingUp, Image as ImageIcon
 } from "lucide-react";
@@ -51,6 +51,7 @@ const CourseBuilder = () => {
   const [activeTab, setActiveTab] = useState("Curriculum");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
 
   // Settings & Pricing State
   const [priceType, setPriceType] = useState("Free");
@@ -118,6 +119,14 @@ const CourseBuilder = () => {
       if (res.data.modules.length > 0) {
         setExpandedModules(res.data.modules.map((m: any) => m.id));
       }
+      
+      try {
+        const feedbackRes = await axios.get(`http://127.0.0.1:8000/api/v1/instructor/reviews`, { headers: { Authorization: `Bearer ${token}` } });
+        setFeedbacks(feedbackRes.data.filter((f: any) => f.course_id === Number(courseId)));
+      } catch (err) {
+        console.error("Failed to load reviews:", err);
+      }
+      
     } catch (err) {
       console.error("Failed to load curriculum", err);
       triggerToast("Failed to load course details", "error");
@@ -438,7 +447,7 @@ const CourseBuilder = () => {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
               <div className="mb-8 flex items-center justify-between">
                 <div>
-                  <h2 className="text-4xl font-black tracking-tight mb-2">Curriculum Builder</h2>
+                  <h2 className="text-5xl font-black bg-gradient-to-br from-slate-900 via-slate-600 to-slate-900 bg-clip-text text-transparent tracking-tight mb-2 inline-block pb-1">Curriculum Builder</h2>
                   <p className="text-slate-500 text-lg">Build your architecture. Drag and drop modules or lessons to reorder.</p>
                 </div>
                 {isSavingOrder && <span className="text-blue-500 font-bold flex items-center gap-2 animate-pulse bg-blue-50 px-4 py-2 rounded-full"><Zap size={16} /> Syncing Order...</span>}
@@ -749,11 +758,38 @@ const CourseBuilder = () => {
 
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <h4 className="font-extrabold text-slate-900 text-lg mb-6">Course Feedback Logs</h4>
-                <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm mb-4"><Users size={28} className="text-slate-400" /></div>
-                  <p className="font-bold text-slate-800">No Feedback Submitted Yet</p>
-                  <p className="text-sm text-slate-500 mt-1">Once students rate or review this course, data will aggregate here.</p>
-                </div>
+                
+                {feedbacks.length === 0 ? (
+                  <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm mb-4"><Users size={28} className="text-slate-400" /></div>
+                    <p className="font-bold text-slate-800">No Feedback Submitted Yet</p>
+                    <p className="text-sm text-slate-500 mt-1">Once students rate or review this course, data will aggregate here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                    {feedbacks.map((fb: any, i: number) => (
+                      <div key={i} className="p-5 border border-slate-200 rounded-2xl flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">
+                              {fb.student.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800 leading-tight">{fb.student}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{fb.time}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star key={s} size={14} className={s <= fb.rating ? "text-yellow-400 fill-yellow-400" : "text-slate-200"} />
+                            ))}
+                          </div>
+                        </div>
+                        {fb.text && <p className="text-sm text-slate-600 leading-relaxed max-w-[90%] font-medium">"{fb.text}"</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
